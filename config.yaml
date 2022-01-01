@@ -1,0 +1,21 @@
+# FLASK PARAMETERS
+port: 5000
+bind_hosts: 0.0.0.0
+
+# APPLICATION PARAMETERS
+cachetime: 60 # seconds
+mapchangetime_s: 45
+log_visits: 1 # 0, 1
+visits_logfile: visits.log # might require absolute path
+enable_stats_page: True # Turning this on provides a DDOS attack vector
+
+# KK META INFO
+compend: 30.01.2022 22:00
+min_mapid: 201
+max_mapid: 275
+
+# LOGGING
+logtype: STDOUT # STDOUT, FILE
+logfile: flask.log # might require absolute path
+loglevel: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
+logger_name: KKmaptimes

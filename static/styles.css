@@ -1,0 +1,265 @@
+/* Begin CSS reset */
+html {
+  box-sizing: border-box;
+  font-size: 18px;
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+ol,
+ul {
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+/* End CSS reset */
+
+body {
+  background: rgb(37, 37, 0);
+  background: linear-gradient(
+    90deg,
+    rgba(37, 37, 0, 1) 0%,
+    rgba(2, 45, 0, 1) 13%,
+    rgba(0, 27, 55, 1) 35%,
+    rgba(0, 63, 70, 1) 65%,
+    rgba(36, 59, 0, 1) 85%,
+    rgba(61, 61, 0, 1) 100%
+  );
+
+  color: white;
+
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 300;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  margin-bottom: 0.5em;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 300;
+  font-style: italic;
+}
+
+h1 {
+  font-size: 3rem;
+}
+
+h2 {
+  font-size: 2rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+p {
+  margin-bottom: 0.8em;
+}
+
+section {
+  margin: 4rem 0;
+}
+
+section h2 {
+  margin-bottom: 0.5rem;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 2rem;
+  margin-bottom: -3px;
+}
+
+.icon-small {
+  width: 24px;
+  height: 24px;
+  margin-right: 0.5rem;
+  margin-bottom: -5px;
+}
+
+#header-image {
+  max-width: 750px;
+  display: block;
+  margin: 2rem auto;
+}
+
+#time-left {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+}
+
+#time-title {
+  margin-right: 1.5rem;
+}
+
+.time {
+  font-weight: 700;
+  font-size: 40px;
+  font-style: italic;
+  letter-spacing: normal;
+}
+
+.time-divider {
+  font-weight: 100;
+  margin: 0 1rem;
+  font-size: 40px;
+}
+
+.server-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1rem;
+}
+
+.server-card {
+  padding: 1.5rem;
+  border-radius: 10px;
+
+  box-shadow: 0 3px 6px rgba(255, 255, 255, 0.16),
+    0 3px 6px rgba(255, 255, 255, 0.23);
+
+  background: rgba(164, 202, 254, 0.15);
+  box-shadow: 0px 4px 30px rgba(183, 203, 255, 0.05);
+}
+
+.server-card h3 {
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.server-card p {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0;
+
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+}
+
+.server-title {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.dot {
+  font-size: 2rem;
+  line-height: 0px;
+  margin-bottom: 0.5rem;
+  margin-right: 0.2rem;
+  margin-left: 1rem;
+}
+
+#map-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  margin: 1rem 0;
+}
+
+#map-search label {
+  font-weight: 700;
+}
+
+#map-search input {
+  background: rgba(164, 202, 254, 0.15);
+  box-shadow: 0px 4px 30px rgba(183, 203, 255, 0.05);
+  border: 0;
+  padding: 0.5rem 1rem;
+  color: white;
+  font-size: 1rem;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#map-search button {
+  border: 0;
+  padding: 0.5rem 1rem;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  background-color: #4f0;
+  box-shadow: 0 0 5px rgba(68, 255, 0, 0.5), 0 0 10px rgba(68, 255, 0, 0.7);
+  z-index: 3;
+
+  transition: background-color 0.2s ease;
+}
+
+#map-search button:hover {
+  background-color: #6a0;
+}
+
+#map-search #searchbar {
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+}
+
+#time-left-server {
+  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+}
+
+.time-server-search {
+  margin-left: -0.5rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+}
+
+footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  margin: 0;
+  margin-top: 7rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  box-shadow: 0 3px 6px rgba(255, 255, 255, 0.16),
+    0 3px 6px rgba(255, 255, 255, 0.23);
+
+  background: rgba(164, 202, 254, 0.1);
+  box-shadow: 0px 4px 30px rgba(183, 203, 255, 0.05);
+}
+
+footer p {
+  margin-right: 1rem;
+  font-size: 14;
+  font-style: italic;
+}

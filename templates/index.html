@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+    <title>KK7 Map Schedule</title>
+  </head>
+  <body>
+    <div class="container">
+    <!-- TODO: change me to KK logo! -->
+      <img id="header-image" src="/static/KK_LOGO.png" />
+      <h1 style="text-align: center; margin-bottom: 0">Map Schedule</h1>
+      <p id="time-left">
+        {% if timeleft[3] == 1 %}
+        <span id="time-title">Time left:</span>
+
+        <span class="time">{{ timeleft[0] }}</span>
+        <span>Days</span>
+
+        <span class="time-divider"> / </span>
+
+        <span class="time">{{ timeleft[1] }}</span>
+        <span>Hours</span>
+
+        <span class="time-divider"> / </span>
+
+        <span class="time">{{ timeleft[2] }}</span>
+        <span>Minutes</span>
+
+        {% else %}
+        <span>The Competition is over!</span>
+        {% endif %}
+      </p>
+
+      <section>
+        <h2>
+          <img class="icon" src="/static/content-delivery-network.svg" />Current
+          Maps
+        </h2>
+        <p>Here are the maps currently being played!</p>
+        <div class="server-grid">
+          {% for serv in servs %}
+          <div class="server-card">
+            <h3 class="server-title">
+              <img class="icon-small" src="/static/bare-metal-server.svg" />
+              {{ serv[0]|safe }}
+            </h3>
+            <p>
+              <!-- TODO: fix my name and colors! -->
+              <span style="color: #aa0">Kack</span
+              ><span style="color: #05a">y Re</span
+              ><span style="color: #09a">lo</span
+              ><span style="color: #6a0">ad</span
+              ><span style="color: #aa0">ed </span
+              ><span style="color: #4f0">#{{ serv[1] }}</span>
+            </p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      <section>
+        <h2><img class="icon" src="/static/search.svg" />Search for a map</h2>
+        <p>
+          Find when a map will next be played. (Estimated time, real time
+          depends on server loading times)
+        </p>
+        <form id="map-search" method="POST">
+          <label for="map">Map #</label>
+          <div id="searchbar">
+            <input type="text" name="map" placeholder="Enter here..." />
+            <button type="submit">Search</button>
+          </div>
+        </form>
+        {% if searched == True %} {% if badinput == True %}
+        <p>Please provide a ID that is in the current map pool!</p>
+        {% else %}
+        <p>
+          <strong>
+            <span style="color: #aa0">Kack</span
+            ><span style="color: #05a">y Re</span
+            ><span style="color: #09a">lo</span
+            ><span style="color: #6a0">ad</span
+            ><span style="color: #aa0">ed </span
+            ><span style="color: #4f0">#{{ searchtext }}</span>
+          </strong>
+          will next be played in:
+        </p>
+        {% endif %} {% endif %}
+        <div class="server-grid">
+          {% for d in deltas %}
+          <div class="server-card">
+            <h3 class="server-title">
+              <img class="icon-small" src="/static/bare-metal-server.svg" />
+              <span>{{ d[1]|safe }}</span>
+            </h3>
+            <p id="time-left-server">
+              <span class="time">{{d[0][0]}}</span>
+              <span class="time-server-search">Hours</span>
+              <span class="time">{{d[0][1]}}</span>
+              <span class="time-server-search">Minutes</span>
+            </p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <p>
+        © 2021 | corkscrew, adralonter and benslv | Thanks to Kackiest Kacky
+        Krew!
+      </p>
+      <iframe
+        style="margin-top: 4px"
+        src="https://ghbtns.com/github-btn.html?user=dremerb&repo=kacky_maptimes&type=watch&count=true&size=small&v=2"
+        frameborder="0"
+        scrolling="0"
+        width="170"
+        height="30"
+        title="Github Repo"
+      ></iframe>
+    </footer>
+  </body>
+</html>
