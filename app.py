@@ -44,7 +44,7 @@ def which_time_is_map_played(timestamp: datetime.datetime, findmapid: int):
         # how many map changes are needed until map is juked?
         changes_needed = findmapid - serv
         if changes_needed < 0:
-            changes_needed += MAPIDS[1] - MAPIDS[0]
+            changes_needed += MAPIDS[1] - MAPIDS[0] + 1
         minutes_time_to_juke = int(changes_needed * (timelimit + config["mapchangetime_s"] / 60))
         # date and time, when map is juked next (without compensation of minutes)
         play_time = timestamp + datetime.timedelta(minutes=minutes_time_to_juke)
