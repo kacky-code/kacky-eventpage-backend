@@ -16,7 +16,7 @@ def get_pagedata():
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api = APIHandler(config)
     api.get_mapinfo()
-    curmaps = list(map(lambda s: s["mapid"], api.servers.values()))
+    curmaps = list(map(lambda s: s.cur_map, api.servers))
     ttl = datetime.datetime.strptime(config["compend"],
                                      "%d.%m.%Y %H:%M") - curtime
     if ttl.days < 0 or ttl.seconds < 0:
@@ -25,7 +25,7 @@ def get_pagedata():
     else:
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), 1)
-    servernames = list(map(lambda s: s["name"], api.servers.values()))
+    servernames = list(map(lambda s: s.name.html, api.servers))
     return servernames, curtimestr, curmaps, timeleft
 
 
@@ -116,8 +116,13 @@ def stats():
     else:
         return flask.Flask.render_template("error.html", error="Stats page disabled")
 
-
-
+#                    _
+#                   (_)
+#    _ __ ___   __ _ _ _ __
+#   | '_ ` _ \ / _` | | '_ \
+#   | | | | | | (_| | | | | |
+#   |_| |_| |_|\__,_|_|_| |_|
+#
 # Reading config file
 with open(os.path.join(os.path.dirname(__file__), "config.yaml"),
           "r") as conffile:

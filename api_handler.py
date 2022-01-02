@@ -5,6 +5,7 @@ import logging
 import flask
 import requests as requests
 
+from datastructures.server import ServerInfo
 from tm_format_resolver import TMstr
 
 
@@ -91,8 +92,12 @@ class APIHandler:
             self.logger.error("Using TEST_API_RESPONSE")
             krdata = TEST_API_RESPONSE
         tmpdict = {}
+        res = []
         for server in krdata.keys():
             d = krdata[server]
+            serverinfo = ServerInfo(TMstr(server), self.config, d.get("color", ""))
+            serverinfo.update_info(d)
+
             mapid = int(TMstr(d["current_map"]).string.split("#")[1])
             servername_tmstr = TMstr(server)
             serverid = int(servername_tmstr.string[-1:])
@@ -102,4 +107,6 @@ class APIHandler:
                 "mapid": mapid,
                 "update": datetime.datetime.now()
             }
-        self.servers = tmpdict.copy()
+            res.append(serverinfo)
+        #self.servers = tmpdict.copy()
+        self.servers = res

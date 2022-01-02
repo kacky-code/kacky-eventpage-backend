@@ -13,6 +13,18 @@ enable_stats_page: True # Turning this on provides a DDOS attack vector
 compend: 30.01.2022 22:00
 min_mapid: 201
 max_mapid: 275
+# playlist parameter can have values ["linear", "custom"]
+# - "linear" for [min_mapid, ... max_mapid] on every server
+# - "custom" for different maps per server (e. g. colors/difficulties)
+#
+# when using custom, set maps (and order) in maps.yaml. Key for server must be same as server name as string
+playlist: linear
+
+# Current phase info
+timelimit: 10
+jukebox: False
+extends: False
+num_extends: 2
 
 # LOGGING
 logtype: STDOUT # STDOUT, FILE
