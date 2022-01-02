@@ -65,7 +65,8 @@ TEST_API_RESPONSE = {
 }
 
 
-class APIHandler:
+class KackyAPIHandler:
+    # dict managing servers
     servers = {}
 
     def __init__(self, config):
@@ -73,40 +74,26 @@ class APIHandler:
         self.logger = logging.getLogger(self.config["logger_name"])
 
     def get_mapinfo(self):
-        # Update self.servers every minute
-        if self.servers != {}:
-            if datetime.datetime.now() - list(self.self.servers.values())[0]["update"] < datetime.timedelta(
-                    seconds=self.config["cachetime"]):
-                # Return if data is not old enough yet
-                self.logger.info("No update for self.servers needed!")
-                return
         self.logger.info("Updating self.servers.")
         try:
-            krdata = requests.get(
-                "https://kacky.koyaanis.com/api/").json()
+            krdata = requests.get("https://kacky.koyaanis.com/api/").json()
         except ConnectionError:
-            self.logger.error("Could not connect to KR API!")
-            #flask.render_template('../kk_schedule/templates/error.html',
-            #                      error="Could not contact KR server. RIP!")
+            self.logger.error("Could not connect to KK API!")
+            flask.render_template('error.html',
+                                  error="Could not contact KK server. RIP!")
+            return
         except json.decoder.JSONDecodeError:
             self.logger.error("Using TEST_API_RESPONSE")
+            # flask.render_template('error.html',
+            #                      error="KK API returned strange data. RIP!")
             krdata = TEST_API_RESPONSE
-        tmpdict = {}
-        res = []
+
         for server in krdata.keys():
             d = krdata[server]
-            serverinfo = ServerInfo(TMstr(server), self.config, d.get("color", ""))
-            serverinfo.update_info(d)
+            # check for first run
+            if server not in self.servers:
+                # this is the first run, need to build objects
+                self.servers[server] = ServerInfo(TMstr(server), self.config)
 
-            mapid = int(TMstr(d["current_map"]).string.split("#")[1])
-            servername_tmstr = TMstr(server)
-            serverid = int(servername_tmstr.string[-1:])
-            servname = servername_tmstr.html
-            tmpdict[serverid] = {
-                "name": servname,
-                "mapid": mapid,
-                "update": datetime.datetime.now()
-            }
-            res.append(serverinfo)
-        #self.servers = tmpdict.copy()
-        self.servers = res
+            # update existing ServerInfo object
+            self.servers[server].update_info(d)

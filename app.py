@@ -5,7 +5,7 @@ import os
 import flask
 import yaml
 
-from api_handler import APIHandler
+from kacky_api_handler import KackyAPIHandler
 
 app = flask.Flask(__name__)
 config = {}
@@ -14,9 +14,9 @@ config = {}
 def get_pagedata():
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
-    api = APIHandler(config)
+    api = KackyAPIHandler(config)
     api.get_mapinfo()
-    curmaps = list(map(lambda s: s.cur_map, api.servers))
+    curmaps = list(map(lambda s: s.cur_map, api.servers.values()))
     ttl = datetime.datetime.strptime(config["compend"],
                                      "%d.%m.%Y %H:%M") - curtime
     if ttl.days < 0 or ttl.seconds < 0:
@@ -25,7 +25,7 @@ def get_pagedata():
     else:
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), 1)
-    servernames = list(map(lambda s: s.name.html, api.servers))
+    servernames = list(map(lambda s: s.name.html, api.servers.values()))
     return servernames, curtimestr, curmaps, timeleft
 
 

@@ -1,0 +1,22 @@
+# This file is used when "playlist" is set to "custom" in config.yaml
+# Format:
+# server name as a string
+#   - color: (some value that sets this server apart, e. g. one of ("white", "green", "easy", "hard", "imp")
+#   - maps: # kacky IDs here in order of playing
+#     - 1
+#     - 2
+#     - 3
+
+Kackiest Kacky 7 - Server 4:
+  color: white
+  maps:
+    - 1
+    - 2
+    - 3
+
+Kackiest Kacky 7 - Server 5:
+  color: free
+  maps:
+    - 11
+    - 22
+    - 33
