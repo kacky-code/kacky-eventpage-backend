@@ -19,7 +19,6 @@
   </head>
   <body>
     <div class="container">
-      <!-- TODO: change me to KK logo! -->
       <img id="header-image" src="/static/KK_LOGO.png" />
       <h1 style="text-align: center; margin-bottom: 0">Map Schedule</h1>
       <p id="time-left">
@@ -58,18 +57,12 @@
               {{ serv[0].split(" - ")[1]|safe }}
             </h3>
             <p>
-              <!--
-              --><span style="color: #a00">K</span
-              ><!--
-              --><span style="color: #a60">a</span
-              ><!--
-              --><span style="color: #aa0">ck</span
-              ><!--
-              --><span style="color: #0a0">iest Kack</span
-              ><!--
-              --><span style="color: #a00">y </span
-              ><!--
-              --><span style="color: #0f4">#{{ serv[1] }}</span>
+            <span style="color: #a00">K</span>
+              <span style="color: #a60">a</span>
+              <span style="color: #aa0">ck</span>
+              <span style="color: #0a0">iest Kack</span>
+              <span style="color: #a00">y </span>
+              <span style="color: #0f4">#{{ serv[1] }}</span>
             </p>
           </div>
           {% endfor %}
@@ -93,18 +86,12 @@
         {% else %}
         <p>
           <strong>
-            <!--
-            --><span style="color: #a00">K</span
-            ><!--
-            --><span style="color: #a60">a</span
-            ><!--
-            --><span style="color: #aa0">ck</span
-            ><!--
-            --><span style="color: #0a0">iest Kack</span
-            ><!--
-            --><span style="color: #a00">y </span
-            ><!--
-            --><span style="color: #0f4">#{{ searchtext }}</span>
+            <span style="color: #a00">K</span>
+            <span style="color: #a60">a</span>
+            <span style="color: #aa0">ck</span>
+            <span style="color: #0a0">iest Kack</span>
+            <span style="color: #a00">y </span>
+            <span style="color: #0f4">#{{ searchtext }}</span>
           </strong>
           will next be played in:
         </p>
@@ -114,9 +101,8 @@
           <div class="server-card">
             <h3 class="server-title">
               <img class="icon-small" src="/static/bare-metal-server.svg" />
-              <span
-                ><!-- {{ d[1]|safe }} -->{{ d[1].split(" - ")[1]|safe }}</span
-              >
+              <span>
+                {{ d[1].split(" - ")[1]|safe }}</span>
             </h3>
             <p id="time-left-server">
               <span class="time">{{d[0][0]}}</span>
