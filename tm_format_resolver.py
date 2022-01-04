@@ -35,6 +35,7 @@ class TMstr:
             htmlstr = re.sub(f"\${match[1:]}", formatters[match[1:]], htmlstr, count=1)
             style_spans += 1
 
+        htmlstr += "</span>" * style_spans
         self.html = htmlstr
 
 
