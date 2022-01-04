@@ -18,7 +18,7 @@ max_mapid: 275
 # - "custom" for different maps per server (e. g. colors/difficulties)
 #
 # when using custom, set maps (and order) in servers.yaml. Key for server must be same as server name as string
-playlist: custom
+playlist: linear
 
 # Current phase info
 timelimit: 10
