@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Refresh every 2 min -->
-    <meta http-equiv="refresh" content="120">
+    <meta http-equiv="refresh" content="120" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -53,27 +53,74 @@
         </h2>
         <p>These are the currently running Maps!</p>
         <div class="server-grid">
+          <script>
+            let counterElements = new Array(
+              { element: null, secondsPassed: 0 },
+              { element: null, secondsPassed: 0 },
+              { element: null, secondsPassed: 0 }
+            );
+          </script>
           {% for serv in servs %}
           <div class="server-card">
             <h3 class="server-title">
               <img class="icon-small" src="/static/bare-metal-server.svg" />
               {{ serv[0].split(" - ")[1]|safe }}
             </h3>
-            <p>
-              <!--
+
+            <div class="server-content">
+              <p>
+                <!--
               --><span style="color: #a00">K</span
-              ><!--
+                ><!--
               --><span style="color: #a60">a</span
-              ><!--
+                ><!--
               --><span style="color: #aa0">ck</span
-              ><!--
+                ><!--
               --><span style="color: #0a0">iest Kack</span
-              ><!--
+                ><!--
               --><span style="color: #a00">y </span
-              ><!--
+                ><!--
               --><span style="color: #0f4">#{{ serv[1] }}</span>
-            </p>
+              </p>
+
+              <p>
+                <span id="time-running"> Running for</span>
+                <span id="id{{ loop.index }}"></span>
+              </p>
+            </div>
+
+            <script>
+              counterElements["{{ loop.index }}" - 1].element =
+                document.getElementById("id{{ loop.index }}");
+              counterElements["{{ loop.index }}" - 1].secondsPassed =
+                parseInt("{{ serv[2] }}");
+
+              setInterval(function () {
+                counterElements["{{ loop.index }}" - 1].secondsPassed += 1;
+                let seconds =
+                  counterElements["{{ loop.index }}" - 1].secondsPassed % 60;
+                let minutes = Math.floor(
+                  counterElements["{{ loop.index }}" - 1].secondsPassed / 60
+                );
+
+                if (seconds < 10) {
+                  seconds = "0" + seconds;
+                }
+
+                counterElements[
+                  "{{ loop.index }}" - 1
+                ].element.innerHTML = `${minutes}:${seconds}`;
+
+                if (
+                  counterElements["{{ loop.index }}" - 1].secondsPassed % 600 ==
+                  0
+                ) {
+                  window.location = window.location.href;
+                }
+              }, 1000);
+            </script>
           </div>
+
           {% endfor %}
         </div>
       </section>
