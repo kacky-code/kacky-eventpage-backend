@@ -28,6 +28,7 @@ class ServerInfo:
         self.cur_map = int(new_info["current_map"].split("#")[-1])
         self.recent = new_info["recently_played"]
         self.last_update = datetime.datetime.now()
+        self.timeplayed = int(new_info["time_played"])
 
         # if recent maps are empty, server must have restarted. Reset playlist order
         if not self.recent:

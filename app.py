@@ -26,7 +26,8 @@ def get_pagedata():
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), 1)
     servernames = list(map(lambda s: s.name.html, api.servers.values()))
-    return servernames, curtimestr, curmaps, timeleft
+    timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
+    return servernames, curtimestr, curmaps, timeleft, timeplayed
 
 
 def minutes_to_hourmin_str(minutes):
@@ -61,8 +62,8 @@ def index():  # put application's code here
         vf.write("\n")
 
     # Get page data
-    servernames, curtimestr, curmaps, timeleft = get_pagedata()
-    serverinfo = list(zip(servernames, curmaps))
+    servernames, curtimestr, curmaps, timeleft,timeplayed = get_pagedata()
+    serverinfo = list(zip(servernames, curmaps, timeplayed))
     return flask.render_template('index.html',
                                  servs=serverinfo,
                                  curtime=curtimestr,

@@ -147,9 +147,14 @@ section h2 {
   letter-spacing: normal;
 }
 
+#time-running {
+  font-weight: normal;
+  font-size: 16px;
+}
+
 .server-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit);
   gap: 1rem;
 }
 
@@ -183,6 +188,12 @@ section h2 {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+}
+
+.server-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .dot {
@@ -331,5 +342,11 @@ footer p {
     width: 24px;
     height: 24px;
     margin-right: 1rem;
+  }
+
+  .server-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 }
