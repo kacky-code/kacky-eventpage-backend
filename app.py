@@ -62,7 +62,7 @@ def index():  # put application's code here
         vf.write("\n")
 
     # Get page data
-    servernames, curtimestr, curmaps, timeleft,timeplayed = get_pagedata()
+    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
     serverinfo = list(zip(servernames, curmaps, timeplayed))
     return flask.render_template('index.html',
                                  servs=serverinfo,
@@ -77,7 +77,7 @@ def on_map_play_search():
     :return:
     """
     # Get page data
-    servernames, curtimestr, curmaps, timeleft = get_pagedata()
+    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
     search_map_id = flask.request.form['map']
     serverinfo = list(zip(servernames, curmaps))
     # check if input is integer
