@@ -37,7 +37,7 @@ def minutes_to_hourmin_str(minutes):
 
 def which_time_is_map_played(timestamp: datetime.datetime, findmapid: int):
     # Get page data
-    servernames, curtimestr, curmaps, timeleft = get_pagedata()
+    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
     deltas = []
     timelimit = 10
 
@@ -79,7 +79,7 @@ def on_map_play_search():
     # Get page data
     servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
     search_map_id = flask.request.form['map']
-    serverinfo = list(zip(servernames, curmaps))
+    serverinfo = list(zip(servernames, curmaps, timeplayed))
     # check if input is integer
     try:
         search_map_id = int(search_map_id)
