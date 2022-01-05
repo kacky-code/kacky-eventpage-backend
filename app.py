@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 
@@ -11,7 +12,7 @@ app = flask.Flask(__name__)
 config = {}
 
 
-def get_pagedata():
+def get_pagedata(rawservernum = False):
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api = KackyAPIHandler(config)
@@ -25,7 +26,10 @@ def get_pagedata():
     else:
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), 1)
-    servernames = list(map(lambda s: s.name.html, api.servers.values()))
+    if rawservernum:
+        servernames = list(map(lambda s: s.name.string.split(" - ")[1], api.servers.values()))
+    else:
+        servernames = list(map(lambda s: s.name.html, api.servers.values()))
     timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
     return servernames, curtimestr, curmaps, timeleft, timeplayed
 
@@ -116,6 +120,18 @@ def stats():
         return flask.Flask.render_template('stats.html')
     else:
         return flask.Flask.render_template("error.html", error="Stats page disabled")
+
+
+@app.route('/data.json')
+def json_data_provider():
+    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata(rawservernum=True)
+    serverinfo = list(zip(servernames, curmaps, timeplayed))
+    jsonifythis = {}
+    for elem in zip(servernames, curmaps, timeplayed):
+        jsonifythis[elem[0]] = [elem[1], elem[2]]
+    jsonifythis["timeleft"] = timeleft
+    jsonifythis["curtimestr"] = curtimestr
+    return json.dumps(jsonifythis)
 
 #                    _
 #                   (_)
