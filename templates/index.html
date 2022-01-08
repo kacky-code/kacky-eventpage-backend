@@ -118,7 +118,7 @@
                   counterElements["{{ loop.index }}" - 1].secondsPassed % 700 ==
                   0
                 ) {
-		  document.getElementsByName("search_btn")[0].click(); 
+		  fetch('https://kk.kackiestkacky.com/api/').then(res => res.text()).then(res => counterElements["{{ loop.index }}" - 1].secondsPassed = parseInt(Object.entries(JSON.parse(res))["{{ loop.index }}" - 1][1].time_played) );
                 }
               }, 1000);
             </script>
