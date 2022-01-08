@@ -1,6 +1,8 @@
 import datetime
+import json
 import logging
 import os
+from pathlib import Path
 
 import flask
 import yaml
@@ -11,7 +13,7 @@ app = flask.Flask(__name__)
 config = {}
 
 
-def get_pagedata():
+def get_pagedata(rawservernum = False):
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api = KackyAPIHandler(config)
@@ -25,39 +27,19 @@ def get_pagedata():
     else:
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), 1)
-    servernames = list(map(lambda s: s.name.html, api.servers.values()))
+    if rawservernum:
+        servernames = list(map(lambda s: s.name.string.split(" - ")[1], api.servers.values()))
+    else:
+        servernames = list(map(lambda s: s.name.html, api.servers.values()))
     timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
     return servernames, curtimestr, curmaps, timeleft, timeplayed
-
-
-def minutes_to_hourmin_str(minutes):
-    minutes = int(minutes)
-    return f"{int(minutes / 60):0>2d}", f"{minutes % 60:0>2d}"
-
-
-def which_time_is_map_played(timestamp: datetime.datetime, findmapid: int):
-    # Get page data
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
-    deltas = []
-    timelimit = 10
-
-    for idx, serv in enumerate(curmaps):
-        # how many map changes are needed until map is juked?
-        changes_needed = findmapid - serv
-        if changes_needed < 0:
-            changes_needed += MAPIDS[1] - MAPIDS[0] + 1
-        minutes_time_to_juke = int(changes_needed * (timelimit + config["mapchangetime_s"] / 60))
-        # date and time, when map is juked next (without compensation of minutes)
-        play_time = timestamp + datetime.timedelta(minutes=minutes_time_to_juke)
-        deltas.append((minutes_to_hourmin_str(minutes_time_to_juke), servernames[idx]))
-    return deltas
 
 
 @app.route('/')
 def index():  # put application's code here
     global config
     # Log visit (only for counting, no further info). Quite GDPR conform, right?
-    with open(config["visits_logfile"], "a") as vf:
+    with open(Path(__file__).parent / config["visits_logfile"], "a") as vf:
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
         vf.write("\n")
 
@@ -98,8 +80,13 @@ def on_map_play_search():
                                      curtime=curtimestr,
                                      searched=True, badinput=True,
                                      timeleft=timeleft)
+
+    api = KackyAPIHandler(config)
+    api.get_mapinfo()
     # input seems ok, try to find next time map is played
-    deltas = which_time_is_map_played(datetime.datetime.now(), search_map_id)
+    deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
+    # remove all None from servers which do not have map
+    deltas = [i for i in deltas if i[0]]
 
     return flask.render_template('index.html',
                                  servs=serverinfo,
@@ -117,6 +104,18 @@ def stats():
     else:
         return flask.Flask.render_template("error.html", error="Stats page disabled")
 
+
+@app.route('/data.json')
+def json_data_provider():
+    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata(rawservernum=True)
+    jsonifythis = {}
+    for elem in zip(servernames, curmaps, timeplayed):
+        jsonifythis[elem[0]] = [elem[1], elem[2]]
+    jsonifythis["timeleft"] = timeleft
+    jsonifythis["curtimestr"] = curtimestr
+    return json.dumps(jsonifythis)
+
+
 #                    _
 #                   (_)
 #    _ __ ___   __ _ _ _ __
@@ -125,8 +124,7 @@ def stats():
 #   |_| |_| |_|\__,_|_|_| |_|
 #
 # Reading config file
-with open(os.path.join(os.path.dirname(__file__), "config.yaml"),
-          "r") as conffile:
+with open(Path(__file__).parent / "config.yaml", "r") as conffile:
     config = yaml.load(conffile, Loader=yaml.FullLoader)
 
 MAPIDS = (config["min_mapid"], config["max_mapid"])
@@ -144,7 +142,7 @@ elif config["logtype"] == "FILE":
     if not os.path.dirname(config["logfile"]) == "" and not os.path.exists(
             os.path.dirname(config["logfile"])):
         os.mkdir(os.path.dirname(config["logfile"]))
-    f = open(config["logfile"], "w+")
+    f = open(Path(__file__).parent / config["logfile"], "w+")
     f.close()
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -160,7 +158,7 @@ logger.setLevel(eval("logging." + config["loglevel"]))
 if config["log_visits"]:
     # Enable logging of visitors to dedicated file. More comfortable than using system log to count visitors.
     # Counting with "cat visits.log | wc -l"
-    f = open(config["visits_logfile"], "a+")
+    f = open(Path(__file__).parent / config["visits_logfile"], "a+")
     f.close()
 
 logger.info("Starting application.")
