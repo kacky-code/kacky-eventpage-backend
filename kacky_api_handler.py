@@ -93,7 +93,9 @@ class KackyAPIHandler:
             return
 
         for server in krdata.keys():
+            self.logger.debug(f"updating server '{server}'")
             d = krdata[server]
+            self.logger.debug(f"new data: {d}")
             # check for first run
             if server not in self.servers:
                 # this is the first run, need to build objects
