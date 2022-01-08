@@ -21,6 +21,7 @@ class ServerInfo:
             self.playlist = PlaylistHandler(config)
 
         self.last_update = 0
+        self.timelimit = server_conf[name.string]["timelimit"]
 
     def update_info(self, new_info: dict):
         self.jukebox = new_info["jukebox"]
@@ -33,3 +34,7 @@ class ServerInfo:
         # if recent maps are empty, server must have restarted. Reset playlist order
         if not self.recent:
             self.playlist.reset()
+        self.playlist.set_current_map(self.cur_map)
+
+    def find_next_play(self, searchid: int):
+        return (self.playlist.get_next_play(searchid, self.timelimit), self.name.string)

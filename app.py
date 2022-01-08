@@ -34,29 +34,6 @@ def get_pagedata(rawservernum = False):
     return servernames, curtimestr, curmaps, timeleft, timeplayed
 
 
-def minutes_to_hourmin_str(minutes):
-    minutes = int(minutes)
-    return f"{int(minutes / 60):0>2d}", f"{minutes % 60:0>2d}"
-
-
-def which_time_is_map_played(timestamp: datetime.datetime, findmapid: int):
-    # Get page data
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
-    deltas = []
-    timelimit = 10
-
-    for idx, serv in enumerate(curmaps):
-        # how many map changes are needed until map is juked?
-        changes_needed = findmapid - serv
-        if changes_needed < 0:
-            changes_needed += MAPIDS[1] - MAPIDS[0] + 1
-        minutes_time_to_juke = int(changes_needed * (timelimit + config["mapchangetime_s"] / 60))
-        # date and time, when map is juked next (without compensation of minutes)
-        play_time = timestamp + datetime.timedelta(minutes=minutes_time_to_juke)
-        deltas.append((minutes_to_hourmin_str(minutes_time_to_juke), servernames[idx]))
-    return deltas
-
-
 @app.route('/')
 def index():  # put application's code here
     global config
@@ -102,8 +79,13 @@ def on_map_play_search():
                                      curtime=curtimestr,
                                      searched=True, badinput=True,
                                      timeleft=timeleft)
+
+    api = KackyAPIHandler(config)
+    api.get_mapinfo()
     # input seems ok, try to find next time map is played
-    deltas = which_time_is_map_played(datetime.datetime.now(), search_map_id)
+    deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
+    # remove all None from servers which do not have map
+    deltas = [i for i in deltas if i[0]]
 
     return flask.render_template('index.html',
                                  servs=serverinfo,
@@ -125,7 +107,6 @@ def stats():
 @app.route('/data.json')
 def json_data_provider():
     servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata(rawservernum=True)
-    serverinfo = list(zip(servernames, curmaps, timeplayed))
     jsonifythis = {}
     for elem in zip(servernames, curmaps, timeplayed):
         jsonifythis[elem[0]] = [elem[1], elem[2]]
