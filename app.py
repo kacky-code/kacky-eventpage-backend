@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+from pathlib import Path
 
 import flask
 import yaml
@@ -38,7 +39,7 @@ def get_pagedata(rawservernum = False):
 def index():  # put application's code here
     global config
     # Log visit (only for counting, no further info). Quite GDPR conform, right?
-    with open(config["visits_logfile"], "a") as vf:
+    with open(Path(__file__).parent / config["visits_logfile"], "a") as vf:
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
         vf.write("\n")
 
@@ -114,6 +115,7 @@ def json_data_provider():
     jsonifythis["curtimestr"] = curtimestr
     return json.dumps(jsonifythis)
 
+
 #                    _
 #                   (_)
 #    _ __ ___   __ _ _ _ __
@@ -122,8 +124,7 @@ def json_data_provider():
 #   |_| |_| |_|\__,_|_|_| |_|
 #
 # Reading config file
-with open(os.path.join(os.path.dirname(__file__), "config.yaml"),
-          "r") as conffile:
+with open(Path(__file__).parent / "config.yaml", "r") as conffile:
     config = yaml.load(conffile, Loader=yaml.FullLoader)
 
 MAPIDS = (config["min_mapid"], config["max_mapid"])
@@ -141,7 +142,7 @@ elif config["logtype"] == "FILE":
     if not os.path.dirname(config["logfile"]) == "" and not os.path.exists(
             os.path.dirname(config["logfile"])):
         os.mkdir(os.path.dirname(config["logfile"]))
-    f = open(config["logfile"], "w+")
+    f = open(Path(__file__).parent / config["logfile"], "w+")
     f.close()
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -157,7 +158,7 @@ logger.setLevel(eval("logging." + config["loglevel"]))
 if config["log_visits"]:
     # Enable logging of visitors to dedicated file. More comfortable than using system log to count visitors.
     # Counting with "cat visits.log | wc -l"
-    f = open(config["visits_logfile"], "a+")
+    f = open(Path(__file__).parent / config["visits_logfile"], "a+")
     f.close()
 
 logger.info("Starting application.")

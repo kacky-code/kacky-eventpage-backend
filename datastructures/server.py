@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 
 import yaml
 
@@ -14,7 +15,7 @@ class ServerInfo:
         self.id = self.name.string.split(" ")[-1]
 
         if self.config["playlist"] == "custom":
-            with open("servers.yaml") as mf:
+            with open(Path(__file__).parents[1] / "servers.yaml") as mf:
                 server_conf = yaml.load(mf, Loader=yaml.FullLoader)
             self.playlist = PlaylistHandler(config, server_conf[name.string]["maps"])
         else:
