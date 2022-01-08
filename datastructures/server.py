@@ -35,7 +35,7 @@ class ServerInfo:
         # if recent maps are empty, server must have restarted. Reset playlist order
         if not self.recent:
             self.playlist.reset()
-        self.playlist.set_current_map(self.cur_map)
+        self.playlist.set_current_map(self.cur_map, self.timeplayed)
 
     def find_next_play(self, searchid: int):
         return (self.playlist.get_next_play(searchid, self.timelimit), self.name.string)
