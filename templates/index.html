@@ -115,10 +115,10 @@
                 ].element.innerHTML = `${minutes}:${seconds}`;
 
                 if (
-                  counterElements["{{ loop.index }}" - 1].secondsPassed % 630 ==
+                  counterElements["{{ loop.index }}" - 1].secondsPassed % 700 ==
                   0
                 ) {
-                  window.location = window.location.href;
+		  document.getElementsByName("search_btn")[0].click(); 
                 }
               }, 1000);
             </script>
@@ -137,7 +137,7 @@
           <label for="map">Map #</label>
           <div id="searchbar">
             <input type="text" name="map" placeholder="Enter here..." />
-            <button type="submit">Search</button>
+            <button type="submit" name="search_btn">Search</button>
           </div>
         </form>
         {% if searched == True %} {% if badinput == True %}

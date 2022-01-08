@@ -1,8 +1,9 @@
 # FLASK PARAMETERS
-port: 5000
+port: 5005
 bind_hosts: 0.0.0.0
 
 # APPLICATION PARAMETERS
+install_dir: /var/www/flask/kk_schedule
 cachetime: 60 # seconds
 mapchangetime_s: 45
 log_visits: 1 # 0, 1
@@ -29,5 +30,5 @@ num_extends: 2
 # LOGGING
 logtype: STDOUT # STDOUT, FILE
 logfile: flask.log # might require absolute path
-loglevel: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
+loglevel: DEBUG # DEBUG, INFO, WARNING, ERROR, CRITICAL
 logger_name: KKmaptimes
