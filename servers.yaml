@@ -11,6 +11,7 @@
 Kackiest Kacky 7 - Server 1:
   color: easy
   timelimit: 15
+  server_login: sky_event
   maps:
     - 201
     - 202
@@ -66,6 +67,7 @@ Kackiest Kacky 7 - Server 1:
 Kackiest Kacky 7 - Server 2:
   color: easy
   timelimit: 15
+  server_login: sky_event2
   maps:
     - 201
     - 202
@@ -121,6 +123,7 @@ Kackiest Kacky 7 - Server 2:
 Kackiest Kacky 7 - Server 3:
   color: hard
   timelimit: 20
+  server_login: sky_event3
   maps:
     - 209
     - 216
