@@ -146,7 +146,7 @@ elif config["logtype"] == "FILE":
     if not os.path.dirname(config["logfile"]) == "" and not os.path.exists(
             os.path.dirname(config["logfile"])):
         os.mkdir(os.path.dirname(config["logfile"]))
-    f = open(Path(__file__).parent / config["logfile"], "w+")
+    f = open(os.path.join(os.path.dirname(__file__), config["logfile"]), "w+")
     f.close()
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -162,7 +162,7 @@ logger.setLevel(eval("logging." + config["loglevel"]))
 if config["log_visits"]:
     # Enable logging of visitors to dedicated file. More comfortable than using system log to count visitors.
     # Counting with "cat visits.log | wc -l"
-    f = open(Path(__file__).parent / config["visits_logfile"], "a+")
+    f = open(os.path.join(os.path.dirname(__file__), config["visits_logfile"]), "a+")
     f.close()
 
 logger.info("Starting application.")
