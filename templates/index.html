@@ -91,36 +91,12 @@
                 <span id="id{{ loop.index }}"></span>
               </p>
             </div>
-
-            <script>
-              counterElements["{{ loop.index }}" - 1].element =
-                document.getElementById("id{{ loop.index }}");
-              counterElements["{{ loop.index }}" - 1].secondsPassed =
-                parseInt("{{ serv[2] }}");
-
-              setInterval(function () {
-                counterElements["{{ loop.index }}" - 1].secondsPassed += 1;
-                let seconds =
-                  counterElements["{{ loop.index }}" - 1].secondsPassed % 60;
-                let minutes = Math.floor(
-                  counterElements["{{ loop.index }}" - 1].secondsPassed / 60
-                );
-
-                if (seconds < 10) {
-                  seconds = "0" + seconds;
-                }
-
-                counterElements[
-                  "{{ loop.index }}" - 1
-                ].element.innerHTML = `${minutes}:${seconds}`;
-
-                if (
-                  counterElements["{{ loop.index }}" - 1].secondsPassed % 700 ==
-                  0
-                ) {
-		  fetch('https://kk.kackiestkacky.com/api/').then(res => res.text()).then(res => counterElements["{{ loop.index }}" - 1].secondsPassed = parseInt(Object.entries(JSON.parse(res))["{{ loop.index }}" - 1][1].time_played) );
-                }
-              }, 1000);
+			
+			<script>
+				(() => {
+					counterElements["{{ loop.index }}" - 1].element = document.getElementById("id{{ loop.index }}");
+					counterElements["{{ loop.index }}" - 1].secondsPassed = parseInt("{{ serv[2] }}");
+				})();
             </script>
           </div>
 
@@ -197,5 +173,22 @@
         title="Github Repo"
       ></iframe>
     </footer>
+	<script defer>
+	function checkCounterNeedsUpdate() {
+		return counterElements.map((el, idx) => (el.secondsPassed >= (idx < 2 ? 950 : 1250) && (el.secondsPassed % 10 == 0))).reduce((prev, curr) => prev += curr ? 1 : 0) > 0;
+	}
+
+	function updateCounterElements() {
+		counterElements.map(el => ++el.secondsPassed).map(secPassed => [Math.floor(secPassed/60), secPassed%60]).forEach((timeString, idx) => counterElements[idx].element.innerText = `${timeString[0]}:${timeString[1] >= 10 ? timeString[1] : '0' + timeString[1]}`);
+	}
+
+	function loadCounterElements() {
+		fetch('https://kk.kackiestkacky.com/api/').then(res => res.text()).then(res => Object.entries(JSON.parse(res)).map((el, idx) => counterElements[idx].secondsPassed = parseInt(el[1].time_played)));
+	}
+
+	let timerUpdater = setInterval(function () {
+		checkCounterNeedsUpdate() ? updateCounterElements() || loadCounterElements() : updateCounterElements();
+	}, 1000);
+	</script>
   </body>
 </html>
