@@ -57,7 +57,6 @@
           <img class="icon" src="/static/content-delivery-network.svg" />Current
           Maps
         </h2>
-        <p>These are the currently running Maps!</p>
         <div class="server-grid">
           <script>
             let counterElements = new Array(
@@ -68,42 +67,53 @@
           </script>
           {% for serv in servs %}
           <div class="server-card">
-            <h3 class="server-title">
-              <img class="icon-small" src="/static/bare-metal-server.svg" />
-              {{ serv[0].split(" - ")[1]|safe }}
-            </h3>
+              <h3 class="server-title">
+                  <img class="icon-small" src="/static/bare-metal-server.svg" />
+                  {{ serv[0].split(" - ")[1]|safe }}
+              </h3>
 
-            <div class="server-content">
-              <p>
-                <!--
-              --><span style="color: #a00">K</span
-                ><!--
-              --><span style="color: #a60">a</span
-                ><!--
-              --><span style="color: #aa0">ck</span
-                ><!--
-              --><span style="color: #0a0">iest Kack</span
-                ><!--
-              --><span style="color: #a00">y </span
-                ><!--
-              --><span class="current-map-id" style="color: #0f4">#{{ serv[1] }}</span>
-              </p>
+              <div class="server-content">
+                  <div class="a">
+                      <p>
+                          <!--
+                          --><span style="color: #a00">K</span
+                          ><!--
+                          --><span style="color: #a60">a</span
+                          ><!--
+                          --><span style="color: #aa0">ck</span
+                          ><!--
+                          --><span style="color: #0a0">iest Kack</span
+                          ><!--
+                          --><span style="color: #a00">y </span
+                          ><!--
+                          --><span style="color: #0f4">#{{ serv[1] }}</span>
+                      </p>
+                  </div>
 
-              <p>
-                <span id="time-running"> Running for</span>
-                <span class="map-time" id="id{{ loop.index }}"></span>
-              </p>
-            </div>
-            <div id="next-map-wrapper">
-              <img class="next-map-icon" src="/static/chevron--right.svg" />
-              <span class="next-map-number" style="color: #0f4"> #{{ serv[3][1] }}</span>
-              <img class="next-map-icon" src="/static/chevron--right.svg" />
-              <span class="next-map-number" style="color: #0f4"> #{{ serv[3][2] }} </span>
-              <img class="next-map-icon" src="/static/chevron--right.svg" />
-              <span class="next-map-number" style="color: #0f4"> #{{ serv[3][3] }} </span>
-            </div>
+                  <div class="b">
+                      <div id="next-map-wrapper">
+                          <img class="next-map-icon" src="/static/chevron--right.svg" />
+                          <span class="next-map-number" style="color: #0f4"> #{{ serv[3][1] }}</span>
+                          <img class="next-map-icon" src="/static/chevron--right.svg" />
+                          <span class="next-map-number" style="color: #0f4"> #{{ serv[3][2] }} </span>
+                          <img class="next-map-icon" src="/static/chevron--right.svg" />
+                          <span class="next-map-number" style="color: #0f4"> #{{ serv[3][3] }} </span>
+                      </div>
+                  </div>
 
-            <script>
+                  <div class="c">
+                      <p>
+                          <span id="time-running"> Running for</span>
+                          <span id="id{{ loop.index }}"></span>
+                      </p>
+                  </div>
+
+                  <div class="d">
+                      <img src="http://dingens.me/kack_thumbnails/{{ serv[1] }}.jpg" width="320">
+                  </div>
+              </div>
+
+			  <script>
               (() => {
                 counterElements["{{ loop.index }}" - 1].element =
                   document.getElementById("id{{ loop.index }}");
@@ -246,4 +256,3 @@
     </script>
   </body>
 </html>
-
