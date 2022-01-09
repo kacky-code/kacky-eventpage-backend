@@ -33,7 +33,8 @@ def get_pagedata(rawservernum = False):
         servernames = list(map(lambda s: s.name.html, api.servers.values()))
     timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
     jukebox = list(map(lambda s: s.playlist.get_playlist_from_now(), api.servers.values()))
-    serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox))
+    timelimits = list(map(lambda s: s.timelimit, api.servers.values()))
+    serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
     return serverinfo, curtimestr, timeleft
 
 
@@ -110,7 +111,10 @@ def json_data_provider():
     serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
     jsonifythis = {}
     for elem in serverinfo:
-        jsonifythis[elem[0]] = [elem[1], elem[2]]
+        if "serverinfo" in jsonifythis:
+            jsonifythis["serverinfo"].append({elem[0]: elem[1:]})
+        else:
+            jsonifythis["serverinfo"] = [{elem[0]: elem[1:]}]
     jsonifythis["timeleft"] = timeleft
     jsonifythis["curtimestr"] = curtimestr
     return json.dumps(jsonifythis)
