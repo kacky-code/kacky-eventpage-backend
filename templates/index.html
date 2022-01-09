@@ -86,7 +86,7 @@
                           ><!--
                           --><span style="color: #a00">y </span
                           ><!--
-                          --><span style="color: #0f4">#{{ serv[1] }}</span>
+                          --><span class="current-map-id" style="color: #0f4">#{{ serv[1] }}</span>
                       </p>
                   </div>
 
@@ -109,7 +109,7 @@
                   </div>
 
                   <div class="d">
-                      <img src="https://dingens.me/kack_thumbnails/{{ serv[1] }}.jpg" width="320">
+                      <img src="https://www.dingens.me/kack_thumbnails/{{ serv[1] }}.jpg" width="320" class="map-thumbnail">
                   </div>
               </div>
 
@@ -244,6 +244,8 @@
 				[...document.getElementsByClassName("current-map-id")].map(el => el.innerText = `#${currentMapIds.splice(0,1)}`);
 				// update next ids elements
 				[...document.getElementsByClassName("next-map-number")].map(el => el.innerText = `#${allNextMapIds.splice(0,1)}`);
+                // update maps thumbnail
+                [...document.getElementsByClassName("map-thumbnail")].src.map(el => el.innerText = `#${currentMapIds.splice(0,1)}`);
 			});
 		}
 
