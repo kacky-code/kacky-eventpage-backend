@@ -32,7 +32,10 @@ def get_pagedata(rawservernum = False):
     else:
         servernames = list(map(lambda s: s.name.html, api.servers.values()))
     timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
-    return servernames, curtimestr, curmaps, timeleft, timeplayed
+    jukebox = list(map(lambda s: s.playlist.get_playlist_from_now(), api.servers.values()))
+    timelimits = list(map(lambda s: s.timelimit, api.servers.values()))
+    serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
+    return serverinfo, curtimestr, timeleft
 
 
 @app.route('/')
@@ -44,8 +47,7 @@ def index():  # put application's code here
         vf.write("\n")
 
     # Get page data
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
-    serverinfo = list(zip(servernames, curmaps, timeplayed))
+    serverinfo, curtimestr, timeleft = get_pagedata()
     return flask.render_template('index.html',
                                  servs=serverinfo,
                                  curtime=curtimestr,
@@ -59,9 +61,8 @@ def on_map_play_search():
     :return:
     """
     # Get page data
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
+    serverinfo, curtimestr, timeleft = get_pagedata()
     search_map_id = flask.request.form['map']
-    serverinfo = list(zip(servernames, curmaps, timeplayed))
     # check if input is integer
     try:
         search_map_id = int(search_map_id)
@@ -107,10 +108,13 @@ def stats():
 
 @app.route('/data.json')
 def json_data_provider():
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata(rawservernum=True)
+    serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
     jsonifythis = {}
-    for elem in zip(servernames, curmaps, timeplayed):
-        jsonifythis[elem[0]] = [elem[1], elem[2]]
+    for elem in serverinfo:
+        if "serverinfo" in jsonifythis:
+            jsonifythis["serverinfo"].append({elem[0]: elem[1:]})
+        else:
+            jsonifythis["serverinfo"] = [{elem[0]: elem[1:]}]
     jsonifythis["timeleft"] = timeleft
     jsonifythis["curtimestr"] = curtimestr
     return json.dumps(jsonifythis)
@@ -142,7 +146,7 @@ elif config["logtype"] == "FILE":
     if not os.path.dirname(config["logfile"]) == "" and not os.path.exists(
             os.path.dirname(config["logfile"])):
         os.mkdir(os.path.dirname(config["logfile"]))
-    f = open(Path(__file__).parent / config["logfile"], "w+")
+    f = open(os.path.join(os.path.dirname(__file__), config["logfile"]), "w+")
     f.close()
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -158,7 +162,7 @@ logger.setLevel(eval("logging." + config["loglevel"]))
 if config["log_visits"]:
     # Enable logging of visitors to dedicated file. More comfortable than using system log to count visitors.
     # Counting with "cat visits.log | wc -l"
-    f = open(Path(__file__).parent / config["visits_logfile"], "a+")
+    f = open(os.path.join(os.path.dirname(__file__), config["visits_logfile"]), "a+")
     f.close()
 
 logger.info("Starting application.")

@@ -7,6 +7,9 @@
       path {
         fill: #fff;
       }
+      circle {
+        fill: #fff;
+      }
     </style>
   </defs>
   <circle cx="21" cy="21" r="2"/>

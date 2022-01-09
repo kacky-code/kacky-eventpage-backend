@@ -46,3 +46,10 @@ class PlaylistHandler:
     def _minutes_to_hourmin_str(self, minutes):
         minutes = int(minutes)
         return f"{int(minutes / 60):0>2d}", f"{minutes % 60:0>2d}"
+
+    def get_playlist_from_now(self):
+        current_pos = self.playlist.index(self.curmap)
+        if current_pos == len(self.playlist) - 1:
+            return self.playlist
+        else:
+            return self.playlist[current_pos:] + self.playlist[:current_pos]

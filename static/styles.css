@@ -152,6 +152,31 @@ section h2 {
   font-size: 16px;
 }
 
+.map-time {
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.next-map-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.next-map-number {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 0;
+}
+
+#next-map-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
 .server-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit);
@@ -204,28 +229,26 @@ section h2 {
 
 /* Server title */
 .a {
-  background: green;
-  flex: 0 0 20%;
+  -webkit-flex: 0 0 33%;
+  flex: 0 0 33%;
 }
 
 /* Current map */
 .b {
-  background: pink;
-  flex: 0 0 40%;
+  -webkit-flex: 0 0 33%;
+  flex: 0 0 33%;
 }
 
 /* Current playtime */
 .c {
-  background: red;
-  flex: 0 0 40%;
+  -webkit-flex: 0 0 33%;
+  flex: 0 0 33%;
 }
 
 /* preview image */
 .d {
-  -webkit-flex: 0 0 100%;
-  flex: 0 0 100%;
-
-  background: blue;
+  -webkit-flex: 0 0 99%;
+  flex: 0 0 99%;
 }
 
 
@@ -381,5 +404,18 @@ footer p {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+  }
+
+  #next-map-wrapper {
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+
+  .next-map-number {
+    font-size: 16px;
+  }
+
+  .map-time {
+    font-size: 20px;
   }
 }
