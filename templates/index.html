@@ -237,15 +237,15 @@
 				// concatenated array of all servers an their 3 next ids (i concate to 1 shot update everything next)
 				let allNextMapIds = serverInfo.map(el => el[2].slice(1, 4)).reduce((prev, curr) => [...prev, ...curr]);
 
-
+                console.log("loop");
 				// update time played elements. subtracting 20 seconds because xaseco starts counting early
 				serverInfo.map((el, idx) => counterElements[idx].secondsPassed = parseInt(el[1]) - 20);
 				// update current ids elements
-				[...document.getElementsByClassName("current-map-id")].map(el => el.innerText = `#${currentMapIds.splice(0,1)}`);
+				[...document.getElementsByClassName("current-map-id")].map((el, idx) => el.innerText = `#${currentMapIds[idx]}`);
 				// update next ids elements
 				[...document.getElementsByClassName("next-map-number")].map(el => el.innerText = `#${allNextMapIds.splice(0,1)}`);
                 // update maps thumbnail
-                [...document.getElementsByClassName("map-thumbnail")].src.map(el => el.innerText = `#${currentMapIds.splice(0,1)}`);
+                [...document.getElementsByClassName("map-thumbnail")].map((el, idx) => el.src = `https://www.dingens.me/kack_thumbnails/${currentMapIds[idx]}.jpg`);
 			});
 		}
 
