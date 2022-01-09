@@ -192,9 +192,42 @@ section h2 {
 
 .server-content {
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  flex-direction: column;
+
+  display: -webkit-flex;
+  -webkit-flex-wrap: wrap;
+  -webkit-flex-direction: column;
+  height: 180px;
+
 }
+
+/* Server title */
+.a {
+  background: green;
+  flex: 0 0 20%;
+}
+
+/* Current map */
+.b {
+  background: pink;
+  flex: 0 0 40%;
+}
+
+/* Current playtime */
+.c {
+  background: red;
+  flex: 0 0 40%;
+}
+
+/* preview image */
+.d {
+  -webkit-flex: 0 0 100%;
+  flex: 0 0 100%;
+
+  background: blue;
+}
+
 
 .dot {
   font-size: 2rem;
