@@ -49,7 +49,4 @@ class PlaylistHandler:
 
     def get_playlist_from_now(self):
         current_pos = self.playlist.index(self.curmap)
-        if current_pos == len(self.playlist) - 1:
-            return self.playlist
-        else:
-            return self.playlist[current_pos:] + self.playlist[:current_pos]
+        return self.playlist[current_pos:] + self.playlist[:current_pos]
