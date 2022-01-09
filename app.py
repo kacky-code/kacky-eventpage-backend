@@ -32,7 +32,9 @@ def get_pagedata(rawservernum = False):
     else:
         servernames = list(map(lambda s: s.name.html, api.servers.values()))
     timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
-    return servernames, curtimestr, curmaps, timeleft, timeplayed
+    jukebox = list(map(lambda s: s.playlist.get_playlist_from_now(), api.servers.values()))
+    serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox))
+    return serverinfo, curtimestr, timeleft
 
 
 @app.route('/')
@@ -44,8 +46,7 @@ def index():  # put application's code here
         vf.write("\n")
 
     # Get page data
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
-    serverinfo = list(zip(servernames, curmaps, timeplayed))
+    serverinfo, curtimestr, timeleft = get_pagedata()
     return flask.render_template('index.html',
                                  servs=serverinfo,
                                  curtime=curtimestr,
@@ -59,9 +60,8 @@ def on_map_play_search():
     :return:
     """
     # Get page data
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata()
+    serverinfo, curtimestr, timeleft = get_pagedata()
     search_map_id = flask.request.form['map']
-    serverinfo = list(zip(servernames, curmaps, timeplayed))
     # check if input is integer
     try:
         search_map_id = int(search_map_id)
@@ -107,9 +107,9 @@ def stats():
 
 @app.route('/data.json')
 def json_data_provider():
-    servernames, curtimestr, curmaps, timeleft, timeplayed = get_pagedata(rawservernum=True)
+    serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
     jsonifythis = {}
-    for elem in zip(servernames, curmaps, timeplayed):
+    for elem in serverinfo:
         jsonifythis[elem[0]] = [elem[1], elem[2]]
     jsonifythis["timeleft"] = timeleft
     jsonifythis["curtimestr"] = curtimestr
