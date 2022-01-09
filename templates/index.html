@@ -5,9 +5,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-     <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
-     <meta http-equiv="pragma" content="no-cache" />
-     <meta http-equiv="expires" content="0" />
+    <meta
+      http-equiv="cache-control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -88,15 +91,25 @@
 
               <p>
                 <span id="time-running"> Running for</span>
-                <span id="id{{ loop.index }}"></span>
+                <span class="map-time" id="id{{ loop.index }}"></span>
               </p>
             </div>
-			
-			<script>
-				(() => {
-					counterElements["{{ loop.index }}" - 1].element = document.getElementById("id{{ loop.index }}");
-					counterElements["{{ loop.index }}" - 1].secondsPassed = parseInt("{{ serv[2] }}");
-				})();
+            <div id="next-map-wrapper">
+              <img class="next-map-icon" src="/static/chevron--right.svg" />
+              <span class="next-map-number" style="color: #0f4"> #234 </span>
+              <img class="next-map-icon" src="/static/chevron--right.svg" />
+              <span class="next-map-number" style="color: #0f4"> #235 </span>
+              <img class="next-map-icon" src="/static/chevron--right.svg" />
+              <span class="next-map-number" style="color: #0f4"> #236 </span>
+            </div>
+
+            <script>
+              (() => {
+                counterElements["{{ loop.index }}" - 1].element =
+                  document.getElementById("id{{ loop.index }}");
+                counterElements["{{ loop.index }}" - 1].secondsPassed =
+                  parseInt("{{ serv[2] }}");
+              })();
             </script>
           </div>
 
@@ -173,22 +186,49 @@
         title="Github Repo"
       ></iframe>
     </footer>
-	<script defer>
-	function checkCounterNeedsUpdate() {
-		return counterElements.map((el, idx) => (el.secondsPassed >= (idx < 2 ? 950 : 1250) && (el.secondsPassed % 10 == 0))).reduce((prev, curr) => prev += curr ? 1 : 0) > 0;
-	}
+    <script defer>
+      function checkCounterNeedsUpdate() {
+        return (
+          counterElements
+            .map(
+              (el, idx) =>
+                el.secondsPassed >= (idx < 2 ? 950 : 1250) &&
+                el.secondsPassed % 10 == 0
+            )
+            .reduce((prev, curr) => (prev += curr ? 1 : 0)) > 0
+        );
+      }
 
-	function updateCounterElements() {
-		counterElements.map(el => ++el.secondsPassed).map(secPassed => [Math.floor(secPassed/60), secPassed%60]).forEach((timeString, idx) => counterElements[idx].element.innerText = `${timeString[0]}:${timeString[1] >= 10 ? timeString[1] : '0' + timeString[1]}`);
-	}
+      function updateCounterElements() {
+        counterElements
+          .map((el) => ++el.secondsPassed)
+          .map((secPassed) => [Math.floor(secPassed / 60), secPassed % 60])
+          .forEach(
+            (timeString, idx) =>
+              (counterElements[idx].element.innerText = `${timeString[0]}:${
+                timeString[1] >= 10 ? timeString[1] : "0" + timeString[1]
+              }`)
+          );
+      }
 
-	function loadCounterElements() {
-		fetch('https://kk.kackiestkacky.com/api/').then(res => res.text()).then(res => Object.entries(JSON.parse(res)).map((el, idx) => counterElements[idx].secondsPassed = parseInt(el[1].time_played)));
-	}
+      function loadCounterElements() {
+        fetch("https://kk.kackiestkacky.com/api/")
+          .then((res) => res.text())
+          .then((res) =>
+            Object.entries(JSON.parse(res)).map(
+              (el, idx) =>
+                (counterElements[idx].secondsPassed = parseInt(
+                  el[1].time_played
+                ))
+            )
+          );
+      }
 
-	let timerUpdater = setInterval(function () {
-		checkCounterNeedsUpdate() ? updateCounterElements() || loadCounterElements() : updateCounterElements();
-	}, 1000);
-	</script>
+      let timerUpdater = setInterval(function () {
+        checkCounterNeedsUpdate()
+          ? updateCounterElements() || loadCounterElements()
+          : updateCounterElements();
+      }, 1000);
+    </script>
   </body>
 </html>
