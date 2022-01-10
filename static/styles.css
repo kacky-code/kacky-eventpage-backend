@@ -168,7 +168,7 @@ section h2 {
   line-height: 0;
 }
 
-#next-map-wrapper {
+.next-map-wrapper {
   display: flex;
   flex-direction: row;
   justify-content: flex-start;

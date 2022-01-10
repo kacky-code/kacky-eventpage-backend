@@ -91,25 +91,25 @@
                   </div>
 
                   <div class="b">
-                      <div id="next-map-wrapper">
+                      <div class="next-map-wrapper">
                           <img class="next-map-icon" src="/static/chevron--right.svg" />
-                          <span class="next-map-number" style="color: #0f4"> #{{ serv[3][1] }}</span>
+                          <span class="next-map-number hover-preview" data-mapid="{{ serv[3][1] }}" style="color: #0f4"> #{{ serv[3][1] }}</span>
                           <img class="next-map-icon" src="/static/chevron--right.svg" />
-                          <span class="next-map-number" style="color: #0f4"> #{{ serv[3][2] }} </span>
+                          <span class="next-map-number hover-preview" data-mapid="{{ serv[3][2] }}" style="color: #0f4"> #{{ serv[3][2] }} </span>
                           <img class="next-map-icon" src="/static/chevron--right.svg" />
-                          <span class="next-map-number" style="color: #0f4"> #{{ serv[3][3] }} </span>
+                          <span class="next-map-number hover-preview" data-mapid="{{ serv[3][3] }}" style="color: #0f4"> #{{ serv[3][3] }} </span>
                       </div>
                   </div>
 
                   <div class="c">
                       <p>
-                          <span id="time-running"> Running for</span>
+                          <span id="time-running"> Time left</span>
                           <span id="id{{ loop.index }}"></span>
                       </p>
                   </div>
 
                   <div class="d">
-                      <img src="https://www.dingens.me/kack_thumbnails/{{ serv[1] }}.jpg" width="320" class="map-thumbnail">
+                      <img src="/static/mapthumbs/{{ serv[1] }}_small.jpg" class="map-thumbnail">
                   </div>
               </div>
 
@@ -118,7 +118,7 @@
                 counterElements["{{ loop.index }}" - 1].element =
                   document.getElementById("id{{ loop.index }}");
                 counterElements["{{ loop.index }}" - 1].secondsPassed =
-                  parseInt("{{ serv[2] }}") - 20; //subtracting 20 seconds because xaseco starts counting early
+                  parseInt("{{ serv[2] }}") - 23; //subtracting 20 seconds because xaseco starts counting early
 				counterElements["{{ loop.index }}" - 1].timelimit =
                   parseInt("{{ serv[4] }}") * 60;
               })();
@@ -198,7 +198,10 @@
         title="Github Repo"
       ></iframe>
     </footer>
-    <script defer>
+	
+	<div id="imagecontainer"></div>
+    
+	<script defer>
 		function checkCounterNeedsUpdate() {
 			return (
 				counterElements
@@ -206,7 +209,7 @@
 					(el, idx) =>
 					// has timelimit of a map exceeded? it then becomes eligable for an update check because of map skip
 					// adding 35 seconds because map skip takes time
-					el.secondsPassed >= el.timelimit + 35 &&
+					el.secondsPassed >= el.timelimit + 30 &&
 					// also constrain it to only check every 10 seconds after the timelimit exceeded (to prevent spaming requests)
 					el.secondsPassed % 10 == 0
 				)
@@ -214,16 +217,18 @@
 			);
 		}
 
-		function updateCounterElements() {
-			counterElements
-				.map((el) => ++el.secondsPassed)
-				.map((secPassed) => [Math.floor(secPassed / 60), secPassed % 60])
-				.forEach(
-					(timeString, idx) =>
-					(counterElements[idx].element.innerText = `${timeString[0]}:${
-						timeString[1] >= 10 ? timeString[1] : "0" + timeString[1]
-					  }`)
-				);
+		function updateCounterElements(countUp=true) {
+			// increase time played by 1 sec
+			if (countUp) {
+				counterElements.map(el => ++el.secondsPassed);
+			}
+			counterElements.map(el => [(el.secondsPassed < el.timelimit) ? Math.floor((el.timelimit-el.secondsPassed) / 60) : 0, (el.secondsPassed < el.timelimit) ? ((el.timelimit-el.secondsPassed) % 60) : 0])
+			.forEach(
+				(timeString, idx) =>
+				(counterElements[idx].element.innerText = `${timeString[0]}:${
+					timeString[1] >= 10 ? timeString[1] : "0" + timeString[1]
+				  }`)
+			);
 		}
 
 		function loadCounterElements() {
@@ -235,16 +240,22 @@
 				// current map ids of all servers concatenated
 				let currentMapIds = serverInfo.map(el => parseInt(el[0]));
 				// concatenated array of all servers an their 3 next ids (i concate to 1 shot update everything next)
-				let allNextMapIds = serverInfo.map(el => el[2].slice(1, 4)).reduce((prev, curr) => [...prev, ...curr]);
+				let allNextMapIds = serverInfo.map(el => el[2].slice(1, 4));
 
 				// update time played elements. subtracting 20 seconds because xaseco starts counting early
-				serverInfo.map((el, idx) => counterElements[idx].secondsPassed = parseInt(el[1]) - 20);
+				serverInfo.map((el, idx) => counterElements[idx].secondsPassed = parseInt(el[1]) - 23);
 				// update current ids elements
 				[...document.getElementsByClassName("current-map-id")].map((el, idx) => el.innerText = `#${currentMapIds[idx]}`);
 				// update next ids elements
-				[...document.getElementsByClassName("next-map-number")].map(el => el.innerText = `#${allNextMapIds.splice(0,1)}`);
+				[...document.getElementsByClassName("next-map-wrapper")].map(el => [...el.querySelectorAll('.hover-preview')]).map((el, idxNextMapsServer) => [...el].map((el, idxNextMap) => {
+					let nextMapId = allNextMapIds[idxNextMapsServer][idxNextMap];
+					el.innerText = `#${nextMapId}`;
+					el.setAttribute('data-mapid', `${nextMapId}`);
+				}));
                 // update maps thumbnail
-                [...document.getElementsByClassName("map-thumbnail")].map((el, idx) => el.src = `https://www.dingens.me/kack_thumbnails/${currentMapIds[idx]}.jpg`);
+                [...document.getElementsByClassName("map-thumbnail")].map((el, idx) => el.src = `${location.origin}/static/mapthumbs/${currentMapIds[idx]}_small.jpg`);
+				// set all currently shown thumbnails to display: none on update, else they will show permanently and cannot be removed by user
+				[...document.getElementById("imagecontainer").children].map(el => el.style.display = 'none');
 			});
 		}
 
@@ -253,7 +264,106 @@
 			if (checkCounterNeedsUpdate()) {
 				loadCounterElements();
 			}
+			
+			// because tabbing out can somehow mess up timers, so check for too large distance to last update
+			let currentTime = new Date().getTime() / 1000;
+			if ((currentTime - lastUpdate) > 2.0) {
+				loadCounterElements();
+			}
+			lastUpdate = currentTime;
 		}, 1000);
+		
+		
+		/* thumbnail next maps hover code */
+		function createMapHoverImages(hoverElements) {
+			// Is being filled with stored image after hover
+			let thumbContainer = {};
+			let imagecontainer = document.getElementById("imagecontainer");
+
+			for (let el of hoverElements) {
+				el.onmousemove = function(evt) {
+					let x_coord = evt.clientX;
+					let y_coord = evt.clientY + window.pageYOffset;
+					
+					let mapid = el.getAttribute('data-mapid');
+					
+					if (thumbContainer[mapid] !== undefined) {
+						if (thumbContainer[mapid] === 'loading') {
+							return;
+						}
+						
+						let img = thumbContainer[mapid];
+						
+						img.style.display = '';
+						if ((y_coord + 20 + img.height) > window.innerHeight + window.pageYOffset) {
+							img.style.top = String(y_coord - img.height - 20) + "px";
+						}
+						else {
+							img.style.top = String(y_coord + 20) + "px";
+						}
+						img.style.left = String(x_coord + 20) + "px";
+						
+						if (img.width === 16) {
+							img.src = `${location.origin}/static/noimage.png`;
+						}
+					}
+					else {
+						if (thumbContainer[mapid] === 'loading') {
+							return;
+						}
+
+						thumbContainer[mapid] = 'loading';
+						fetch(`${location.origin}/static/mapthumbs/${mapid}_small.jpg`)
+						.then((response) => response.blob())
+						.then((blobresponse) => {
+							let thumbnail = document.createElement('img');
+							let imgblob = URL.createObjectURL(blobresponse);
+							thumbnail.src = imgblob;
+							
+							thumbnail.style.position = 'absolute';
+							thumbnail.width = 320;
+							thumbnail.height = 180;
+							
+							if ((y_coord + 20 + thumbnail.height) > window.innerHeight + window.pageYOffset) {
+								thumbnail.style.top = String(y_coord - thumbnail.height - 20) + "px";
+							}
+							else {
+								thumbnail.style.top = String(y_coord + 20) + "px";
+							}
+							thumbnail.style.left = String(x_coord + 20) + "px";
+							thumbContainer[mapid] = thumbnail;
+							imagecontainer.appendChild(thumbnail);
+						});
+					}
+				}
+				
+				el.onmouseleave = function(evt) {
+					let clearImage = setInterval(() => {
+						let mapid = el.getAttribute('data-mapid');
+						let img = thumbContainer[mapid];
+						
+						if (img === null || img == undefined || img === 'loading') {
+							return;
+						}
+						
+						img.style.display = 'none';
+						clearInterval(clearImage);
+					}, 20);
+				}
+			}
+			return hoverElements;
+		}
+		
+		
+		let lastUpdate = new Date().getTime() / 1000;
+		
+		// immediately update counter elements to show the timer right away, but dont have it count up a second yet
+		updateCounterElements(false);
+		
+		// set up thumbnail stuff
+		let previewElements = [...document.getElementsByClassName('hover-preview')];
+		previewElements = createMapHoverImages(previewElements);
+
     </script>
   </body>
 </html>
