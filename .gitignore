@@ -2,3 +2,4 @@ visits.log
 venv
 .idea
 *__pycache__/
+static/mapthumbs
