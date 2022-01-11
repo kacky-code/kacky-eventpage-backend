@@ -2,4 +2,5 @@ visits.log
 venv
 .idea
 *__pycache__/
-static/map_thumbnails/*
+static/map_thumbnails/*.jpg
+usermanagement/users.db

@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import flask
 import yaml
 
 from kacky_api_handler import KackyAPIHandler
+from usermanagement.usermanager import UserMngr
 
 app = flask.Flask(__name__)
 config = {}
@@ -95,6 +97,43 @@ def on_map_play_search():
                                  searched=True, searchtext=search_map_id,
                                  timeleft=timeleft,
                                  deltas=deltas)
+
+
+@app.route('/login', methods=['POST'])
+@app.route('/register', methods=['POST'])
+def show_login_page_on_button():
+    um = UserMngr(config)
+    if flask.request.path == "/login":
+        # user wants to login
+        cryptpw = hashlib.sha256(flask.request.form["login_pwd"].encode()).hexdigest()
+        res = um.login(flask.request.form["login_usr"], cryptpw)
+        if res:
+            response = flask.make_response(flask.render_template('login.html', mode="l", state=True))
+            response.set_cookie("kkkeks", json.dumps({"user": flask.request.form["login_usr"],
+                                                      "h": cryptpw}))
+            return response
+        else:
+            return "Login failed! Check username and pwd!"
+    else:
+        # user wants to register
+        cryptpw = hashlib.sha256(flask.request.form["reg_pwd"].encode()).hexdigest()
+        cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
+        res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
+        if res:
+            return "Registered!"
+        else:
+            return "Registration failed! Username already exists!"
+
+
+@app.route('/login')
+@app.route('/register')
+def show_login_page():
+    if flask.request.path == "/login":
+        # user wants to login
+        return flask.render_template('login.html', mode="l")
+    else:
+        # user wants to register
+        return flask.render_template('login.html', mode="r")
 
 
 @app.route('/stats')

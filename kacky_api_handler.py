@@ -69,7 +69,7 @@ class KackyAPIHandler:
     # dict managing servers
     servers = {}
 
-    def __init__(self, config):
+    def __init__(self, config: dict):
         self.config = config
         self.logger = logging.getLogger(self.config["logger_name"])
 
@@ -103,3 +103,16 @@ class KackyAPIHandler:
 
             # update existing ServerInfo object
             self.servers[server].update_info(d)
+
+    def get_fin_info(self, tmlogin):
+        try:
+            findata = requests.post("https://kk.kackiestkacky.com/api/", data={"login": tmlogin}).json()
+        except ConnectionError:
+            self.logger.error("Could not connect to KK API!")
+            flask.render_template('error.html',
+                                  error="Could not contact KK server. RIP!")
+        return findata
+
+if __name__ == "__main__":
+    k = KackyAPIHandler({"logger_name": "bnl"})
+    print(k.get_fin_info("amgreborn"))
