@@ -9,6 +9,10 @@
     <meta http-equiv="pragma" content="no-cache"/>
     <meta http-equiv="expires" content="0"/>
 
+    {% if mode == "tmp" %}
+        <meta http-equiv="refresh" content="5; url=/login" />
+    {% endif %}
+
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;700&display=swap" rel="stylesheet" />
@@ -17,36 +21,39 @@
 </head>
 <body>
 <div class="container">
-    {% if state %}
-    You are logged in!
-    {% endif %}
-    {% if mode == "l" or mode == "s" %}
-        {% if mode == "s" %}
-            <!-- successfully registered!-->
-            You were successfully registered! Please log in now!
-        {% endif %}
-    <!-- Login block -->
-    <form id="login" method="POST">
-        <input type="text" name="login_usr" placeholder="Username"/>
-        <input type="password" name="login_pwd" placeholder="Password"/>
-        <button type="submit" name="login_submit">Login</button>
-    </form>
+    {% if mode == "tmp" %}
+        <!-- successfully registered!-->
+        You were successfully registered! <a href="/login">Please log in now!</a> (Forwarding in 5s).
     {% else %}
-    <!-- Login block -->
-    <form id="login" method="POST">
-        <input type="text" name="reg_usr" placeholder="Username"/>
-        <br>
-        <input type="password" name="reg_pwd" placeholder="Password"/>
-        <br>
-        <input type="password" name="reg_mail" placeholder="Mail Address"/>
-        <br>
-        Beware, we just store a hash of your mail address.<br>
-        Therefore you will need to remember either your password or mail address.<br>
-        F if you forget both.<br>
-        On the upside, hackers don't get your data and GDPR can go fuck itself :3
-        <br>
-        <button type="submit" name="login_reg">Register</button>
-    </form>
+
+        {% if state %}
+        You are logged in!
+        {% endif %}
+
+        {% if mode == "l" %}
+        <!-- Login block -->
+        <form id="login" method="POST">
+            <input type="text" name="login_usr" placeholder="Username"/>
+            <input type="password" name="login_pwd" placeholder="Password"/>
+            <button type="submit" name="login_submit">Login</button>
+        </form>
+        {% else %}
+        <!-- Login block -->
+        <form id="login" method="POST">
+            <input type="text" name="reg_usr" placeholder="Username"/>
+            <br>
+            <input type="password" name="reg_pwd" placeholder="Password"/>
+            <br>
+            <input type="password" name="reg_mail" placeholder="Mail Address"/>
+            <br>
+            Beware, we just store a hash of your mail address.<br>
+            Therefore you will need to remember either your password or mail address.<br>
+            F if you forget both.<br>
+            On the upside, hackers don't get your data and GDPR can go fuck itself :3
+            <br>
+            <button type="submit" name="login_reg">Register</button>
+        </form>
+        {% endif %}
     {% endif %}
 </div>
 </body>

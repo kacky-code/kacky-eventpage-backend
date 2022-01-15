@@ -146,7 +146,8 @@ def show_login_page_on_button():
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
         res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
         if res:
-            return flask.redirect('login?reg=success')
+            from flask import url_for
+            return flask.render_template("login.html", mode="tmp")
         else:
             return "Registration failed! Username already exists!"
 
@@ -157,9 +158,6 @@ def show_login_page():
     res = check_login(flask.request.cookies.get("kkkeks"))
     if res == "bad_cookie":
         if flask.request.path == "/login":
-            if flask.request.args.get("reg", default="nope") == "success":
-                # user created new account, needs to login
-                return flask.render_template('login.html', mode="s")
             # user wants to login
             return flask.render_template('login.html', mode="l")
         else:
@@ -216,11 +214,11 @@ def show_user_page_on_button():
         if flask.request.form["user_save"] == "discord_id":
             # user clicked button to save discord ID
             um.set_discord_id(username, flask.request.form["discord_id"])
-            return flask.redirect('user')
+            return flask.redirect('/user')
         elif flask.request.form["user_save"] == "tm_id":
             # user clicked button to save tm login
             um.set_tm_login(username, flask.request.form["tm_id"])
-            response = flask.make_response(flask.redirect('user'))
+            response = flask.make_response(flask.redirect('/user'))
             response.set_cookie("kkkeks", json.dumps({"user": username,
                                                       "h": json.loads(flask.request.cookies.get("kkkeks"))["h"],
                                                       "tm_login": flask.request.form["tm_id"]}))
@@ -230,7 +228,7 @@ def show_user_page_on_button():
             selected_maps = flask.request.form.getlist("alarm_selector")
             ac = AlarmChecker(config)
             ac.set_alarms_for_user(username, selected_maps)
-            return flask.redirect('user')
+            return flask.redirect('/user')
     else:
         return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
         # TODO: Delete cookie here
