@@ -133,9 +133,10 @@ def show_login_page_on_button():
         cryptpw = hashlib.sha256(flask.request.form["login_pwd"].encode()).hexdigest()
         res = um.login(flask.request.form["login_usr"], cryptpw)
         if res:
+            tm_login = um.get_tm_login(flask.request.form["login_usr"])
             response = flask.make_response(flask.render_template('login.html', mode="l", state=True))
             response.set_cookie("kkkeks", json.dumps({"user": flask.request.form["login_usr"],
-                                                      "h": cryptpw}))
+                                                      "h": cryptpw, "tm_login": tm_login}))
             return response
         else:
             return "Login failed! Check username and pwd!"
@@ -219,8 +220,13 @@ def show_user_page_on_button():
         elif flask.request.form["user_save"] == "tm_id":
             # user clicked button to save tm login
             um.set_tm_login(username, flask.request.form["tm_id"])
-            return flask.redirect('user')
+            response = flask.make_response(flask.redirect('user'))
+            response.set_cookie("kkkeks", json.dumps({"user": username,
+                                                      "h": json.loads(flask.request.cookies.get("kkkeks"))["h"],
+                                                      "tm_login": flask.request.form["tm_id"]}))
+            return response
         elif flask.request.form["user_save"] == "alarms":
+            # user clicked button to save alarms
             selected_maps = flask.request.form.getlist("alarm_selector")
             ac = AlarmChecker(config)
             ac.set_alarms_for_user(username, selected_maps)
