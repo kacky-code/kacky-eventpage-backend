@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="pragma" content="no-cache"/>
+    <meta http-equiv="expires" content="0"/>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <title>KK7 Map Schedule</title>
+</head>
+<body>
+Hey {{ username }}!<br>
+<br>
+<form id="set_discord_id" method="POST">
+    Please add your TM login here, so we can check your fins:
+    <input type="text" name="tm_id" value="{{ tm_login }}"/>
+    <button type="submit" name="user_save" value="tm_id">Save ID</button>
+</form>
+<form id="set_discord_id" method="POST">
+    Please add your Discord ID here to enable alarms:
+    <input type="text" name="discord_id" value="{{ discord_id }}"/>
+    <button type="submit" name="user_save" value="discord_id">Save ID</button>
+</form>
+<form id="save_alarms" method="POST">
+    <button type="submit" name="user_save" value="alarms">Save Alarms</button>
+    <table>
+        {% for map in maplist %}
+        <tr>
+            <td>{{ map }}</td>
+            <td>
+                {% if alarm_enabled and map in useralarms %}
+                    <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ map }}" checked="checked" />
+                {% elif alarm_enabled and map not in useralarms %}
+                    <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ map }}" />
+                {% else %}
+                    <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ map }}" disabled="disabled" />
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <button type="submit" name="user_save" value="alarms">Save Alarms</button>
+</form>
+</body>
+</html>

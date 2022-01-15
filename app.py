@@ -8,6 +8,7 @@ from pathlib import Path
 import flask
 import yaml
 
+from db_ops.alarm_checker import AlarmChecker
 from kacky_api_handler import KackyAPIHandler
 from usermanagement.usermanager import UserMngr
 
@@ -15,7 +16,7 @@ app = flask.Flask(__name__)
 config = {}
 
 
-def get_pagedata(rawservernum = False):
+def get_pagedata(rawservernum=False):
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api = KackyAPIHandler(config)
@@ -38,6 +39,30 @@ def get_pagedata(rawservernum = False):
     timelimits = list(map(lambda s: s.timelimit, api.servers.values()))
     serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
     return serverinfo, curtimestr, timeleft
+
+
+def check_login(cookie: str):
+    """
+
+    Parameters
+    ----------
+    cookie : str
+        Cookie with login info, as read by Flask
+
+    Returns
+    -------
+    Union(str, bool)
+        bad_cookie, if cookie cannot be processed
+        True/False, depending on login info validity when cookie can be processed
+    """
+    try:
+        cookie_usercreds = json.loads(cookie)
+    except (json.JSONDecodeError, TypeError):
+        # cookie cannot be read
+        return "bad_cookie"
+    um = UserMngr(config)
+    # True/False, if login is legit
+    return um.login(cookie_usercreds["user"], cookie_usercreds["h"])
 
 
 @app.route('/')
@@ -120,7 +145,7 @@ def show_login_page_on_button():
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
         res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
         if res:
-            return "Registered!"
+            return flask.redirect('login?reg=success')
         else:
             return "Registration failed! Username already exists!"
 
@@ -128,12 +153,81 @@ def show_login_page_on_button():
 @app.route('/login')
 @app.route('/register')
 def show_login_page():
-    if flask.request.path == "/login":
-        # user wants to login
-        return flask.render_template('login.html', mode="l")
+    res = check_login(flask.request.cookies.get("kkkeks"))
+    if res == "bad_cookie":
+        if flask.request.path == "/login":
+            if flask.request.args.get("reg", default="nope") == "success":
+                # user created new account, needs to login
+                return flask.render_template('login.html', mode="s")
+            # user wants to login
+            return flask.render_template('login.html', mode="l")
+        else:
+            # user wants to register
+            return flask.render_template('login.html', mode="r")
+    elif res:
+        return flask.render_template('error.html', error="You are already logged in. "
+                                                         "Logging out currently is not supported, delete cookies...")
     else:
-        # user wants to register
-        return flask.render_template('login.html', mode="r")
+        response = flask.make_response(flask.render_template('login.html', mode="l", state=False))
+        response.set_cookie("kkkeks", json.dumps({"user": "", "h": ""}), expires=0)
+        return response
+
+
+@app.route('/user')
+def show_user_page():
+    res = check_login(flask.request.cookies.get("kkkeks"))
+    if res == "bad_cookie" or not res:      # if bad cookie or bad login in cookie
+        return flask.render_template("error.html", error="You Login-Info in cookies is bad. "
+                                                         "Please clear cookies for this page!")
+        # TODO: Delete cookie here
+    elif res:
+        um = UserMngr(config)
+        username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        discord_id = um.get_discord_id(username)
+        tm_login = um.get_tm_login(username)
+        ac = AlarmChecker(config)
+        alarms = ac.get_alarms_for_user(username)
+        maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1])))
+        return flask.render_template('user.html',
+                                     username=username,
+                                     maplist=maplist,
+                                     useralarms=alarms,
+                                     discord_id=discord_id,
+                                     tm_login=tm_login,
+                                     alarm_enabled=True if discord_id != "" else False
+                                     )
+    else:
+        # TODO: Delete cookie here
+        return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
+
+
+@app.route('/user', methods=['POST'])
+def show_user_page_on_button():
+    res = check_login(flask.request.cookies.get("kkkeks"))
+    maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1])))
+    if res == "bad_cookie" or not res:      # if bad cookie or bad login in cookie
+        return flask.render_template("error.html", error="You Login-Info in cookies is bad. "
+                                                         "Please clear cookies for this page!")
+        # TODO: Delete cookie here
+    elif res:
+        um = UserMngr(config)
+        username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        if flask.request.form["user_save"] == "discord_id":
+            # user clicked button to save discord ID
+            um.set_discord_id(username, flask.request.form["discord_id"])
+            return flask.redirect('user')
+        elif flask.request.form["user_save"] == "tm_id":
+            # user clicked button to save tm login
+            um.set_tm_login(username, flask.request.form["tm_id"])
+            return flask.redirect('user')
+        elif flask.request.form["user_save"] == "alarms":
+            selected_maps = flask.request.form.getlist("alarm_selector")
+            ac = AlarmChecker(config)
+            ac.set_alarms_for_user(username, selected_maps)
+            return flask.redirect('user')
+    else:
+        return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
+        # TODO: Delete cookie here
 
 
 @app.route('/stats')

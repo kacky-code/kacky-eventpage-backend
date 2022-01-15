@@ -288,6 +288,10 @@
 			let thumbContainer = {};
 			let imagecontainer = document.getElementById("imagecontainer");
 
+            if (screen.width < 768) {
+                return
+            }
+
 			for (let el of hoverElements) {
 				el.onmousemove = function(evt) {
 					let x_coord = evt.clientX;
