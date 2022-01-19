@@ -30,19 +30,21 @@ class AlarmChecker:
         return self
 
     def get_alarms_for_user(self, user):
-        req = self.cursor.execute(f"SELECT setalarms FROM alarms WHERE username = '{user}';").fetchall()
+        query = "SELECT setalarms FROM alarms WHERE username = ?;"
+        req = self.cursor.execute(query, (user, )).fetchall()
         if not req:     # no values
             return []
         alarmlist = req[0][0].split()
         return alarmlist
 
     def set_alarms_for_user(self, user, alarmlist):
-        self.cursor.execute(f"UPDATE alarms SET setalarms = '{' '.join(alarmlist)}'"
-                            f"WHERE username = '{user}'")
+        query = "UPDATE alarms SET setalarms = ? WHERE username = ?"
+        self.cursor.execute(query, (' '.join(alarmlist), user))
         self.connection.commit()
 
     def get_users_for_map(self, mapid):
-        req = self.cursor.execute(f"SELECT username FROM alarms WHERE setalarms LIKE '%{mapid}%';").fetchall()
+        query = "SELECT username FROM alarms WHERE setalarms LIKE ?;"
+        req = self.cursor.execute(query, ("%" + mapid + "%", )).fetchall()
         return req
 
     def get_discord_ids_for_map(self, mapid):

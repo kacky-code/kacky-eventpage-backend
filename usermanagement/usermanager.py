@@ -54,13 +54,13 @@ class UserMngr:
     def add_user(self, user, cryptpwd, cryptmail):
         self.logger.info(f"Trying to create user {user}.")
         # Check if user already exists
-        if not self.cursor.execute(f"SELECT username FROM kack_users WHERE username = '{user}';").fetchall():
+        query = "SELECT username FROM kack_users WHERE username = ?;"
+        if not self.cursor.execute(query, (user, )).fetchall():
             self.logger.info(f"User {user} does not yet exist. Creating.")
-            self.cursor.execute(f"INSERT INTO kack_users(username, passwd, mail, tm_login) VALUES "
-                                f"('{user}', '{cryptpwd}', "
-                                f"'{self.hashgen(cryptmail.encode()).hexdigest()}', '');")
-            self.cursor.execute(f"INSERT INTO alarms(username, setalarms) VALUES "
-                                f"('{user}', '');")
+            query = "INSERT INTO kack_users(username, passwd, mail, tm_login) VALUES (?, ?, ?, '');"
+            self.cursor.execute(query, (user, cryptpwd, cryptmail))
+            query = "INSERT INTO alarms(username, setalarms) VALUES (?, '');"
+            self.cursor.execute(query, (user, ))
             self.connection.commit()
             return True
         else:
@@ -83,7 +83,8 @@ class UserMngr:
         bool
             True if user can be logged in, False if something is wrong
         """
-        dbdata = self.cursor.execute(f"SELECT username, passwd FROM kack_users WHERE username = '{user}';").fetchall()
+        query = "SELECT username, passwd FROM kack_users WHERE username = ?"
+        dbdata = self.cursor.execute(query, (user, )).fetchall()
         if len(dbdata) == 0:
             return False
         elif len(dbdata) > 1:
@@ -97,7 +98,8 @@ class UserMngr:
                 return False
 
     def set_discord_id(self, user: str, id: str):
-        cur_IM = self.cursor.execute(f"SELECT im_handle FROM kack_users WHERE username = '{user}';").fetchall()
+        query = "SELECT im_handle FROM kack_users WHERE username = ?;"
+        cur_IM = self.cursor.execute(query, (user, )).fetchall()
         try:
             cur_IM_dict = json.loads(cur_IM)
         except (json.decoder.JSONDecodeError, TypeError):
@@ -107,8 +109,8 @@ class UserMngr:
             # else Update
             cur_IM_dict["discord"] = id
 
-        self.cursor.execute(f"UPDATE kack_users SET im_handle = '{json.dumps(cur_IM_dict)}'"
-                            f"WHERE username = '{user}'")
+        query = "UPDATE kack_users SET im_handle = ? WHERE username = ?"
+        self.cursor.execute(query, (json.dumps(cur_IM_dict), user))
         self.connection.commit()
 
     def get_discord_id(self, user: str):
@@ -125,7 +127,8 @@ class UserMngr:
         str
             Discord ID or "", if there is none stored
         """
-        cur_IM = self.cursor.execute(f"SELECT im_handle FROM kack_users WHERE username = '{user}';").fetchall()
+        query = "SELECT im_handle FROM kack_users WHERE username = ?;"
+        cur_IM = self.cursor.execute(query, (user, )).fetchall()
         if not cur_IM:
             return ""
         else:
@@ -139,10 +142,11 @@ class UserMngr:
         else:
             return ""
 
-    def set_tm_login(self, user: str, id: str):
-        self.cursor.execute(f"UPDATE kack_users SET tm_login = '{id}'"
-                            f"WHERE username = '{user}'")
+    def set_tm_login(self, user: str, tmid: str):
+        query = "UPDATE kack_users SET tm_login = ? WHERE username = ?"
+        self.cursor.execute(query, (tmid, user))
         self.connection.commit()
 
     def get_tm_login(self, user):
-        return self.cursor.execute(f"SELECT tm_login FROM kack_users WHERE username = '{user}';").fetchall()[0][0]
+        query = "SELECT tm_login FROM kack_users WHERE username = ?;"
+        return self.cursor.execute(query, (user, )).fetchall()[0][0]
