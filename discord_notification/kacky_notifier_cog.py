@@ -17,6 +17,12 @@ class MyCog(commands.Cog):
         self.loggername = "kk_discord_bot"
         self.logger = logging.getLogger(self.loggername)
 
+        with open("bot.yaml") as b:
+            conf = yaml.load(b, yaml.FullLoader)
+        self.guild_id = conf["guild"]
+        if self.guild_id = "":
+            raise RuntimeError("Bad values in bot.yaml!")
+
     def cog_unload(self):
         self.printer.cancel()
 
@@ -50,21 +56,33 @@ class MyCog(commands.Cog):
             serv_name = list(server.keys())[0]
             # get time limit and find when 10 min remain (else use timelimit)
             serv_timelimit = server[serv_name][3]
-            if serv_timelimit - 10 > 0:
-                alarm_mark = (serv_timelimit - 10) * 60
+            timeleft = serv_timelimit * 60 - server[serv_name][1]
+            if serv_timelimit > 10:
+                alarm_mark = 60 * 10 # 10 min in s
             else:
-                alarm_mark = serv_timelimit * 60
-            # check if 10:xx min remain
-            if alarm_mark + 30 > alarm_mark > alarm_mark - 29:
+                alarm_mark = (serv_timelimit - 1) * 60  # timelimit - 1min in s
+            if alarm_mark + 30 > timeleft > alarm_mark - 29:
                 next_map = server[serv_name][2][1]
                 discord_ids_for_alarm = ac.get_discord_ids_for_map(next_map)
 
+                guild = self.bot.get_guild(self.guild_id)
+
                 for userid in discord_ids_for_alarm:
+                    self.logger.error(f"processing {userid}")
                     try:
-                        user = await self.bot.fetch_user(userid)
-                        await user.send(f"you are in userlist, loop {self.index}")
+                        # user = await self.bot.fetch_user(userid)
+                        user = discord.utils.get(guild.members, name=userid.split("#")[0], discriminator=userid.split("#")[1])
+                        self.logger.error(f"user: {user}    {user.id}")
+                        if user is None:
+                            # bad user credentials
+                            self.logger.error(f"ID {userid} is a bad Discord ID!")
+                            continue
+                        await user.send(f"Hey, map **{next_map}** is coming up on **{serv_name}**! Roughly 10 min until it's played, glhf!")
+                        # await user.send(f"For {serv_name}, the time limit is {serv_timelimit}. alarm at {alarm_mark}, time is at {server[serv_name][1]}")
                     except discord.errors.HTTPException:
                         self.logger.error(f"ID {userid} is a bad Discord ID!")
+                    except IndexError:
+                        self.logger.error(f"ID {userid} has bad format (no '#')!")
 
 
     @printer.before_loop
