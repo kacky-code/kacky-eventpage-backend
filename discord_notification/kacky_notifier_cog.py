@@ -3,6 +3,7 @@ import logging
 import discord
 import requests
 from discord.ext import tasks, commands
+import yaml
 
 from db_ops.alarm_checker import AlarmChecker
 from usermanagement.usermanager import UserMngr
@@ -17,10 +18,10 @@ class MyCog(commands.Cog):
         self.loggername = "kk_discord_bot"
         self.logger = logging.getLogger(self.loggername)
 
-        with open("bot.yaml") as b:
+        with open("/var/www/flask/kim_kk_dev_site/bot.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
         self.guild_id = conf["guild"]
-        if self.guild_id = "":
+        if self.guild_id == "":
             raise RuntimeError("Bad values in bot.yaml!")
 
     def cog_unload(self):

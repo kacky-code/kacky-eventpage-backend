@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import yaml
 
 TOKEN = ""
 GUILD_ID = ""
@@ -32,7 +33,7 @@ async def on_ready():
 
 if __name__ == "__main__":
     try:
-        with open("bot.yaml") as b:
+        with open("/var/www/flask/kim_kk_dev_site/bot.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
     except FileNotFoundError:
         raise FileNotFoundException("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
