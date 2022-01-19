@@ -52,7 +52,7 @@ def check_login(cookie: str):
     Returns
     -------
     Union(str, bool)
-        bad_cookie, if cookie cannot be processed
+        "bad_cookie", if cookie cannot be processed
         True/False, depending on login info validity when cookie can be processed
     """
     try:
@@ -73,12 +73,32 @@ def index():  # put application's code here
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
         vf.write("\n")
 
+    # check if user is logged in
+    res = check_login(flask.request.cookies.get("kkkeks"))
+
     # Get page data
     serverinfo, curtimestr, timeleft = get_pagedata()
-    return flask.render_template('index.html',
-                                 servs=serverinfo,
-                                 curtime=curtimestr,
-                                 timeleft=timeleft)
+
+    if res and res != "bad_cookie":
+        # user logged in
+        loginname = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        return flask.render_template('index.html',
+                                     servs=serverinfo,
+                                     curtime=curtimestr,
+                                     timeleft=timeleft,
+                                     loginname=loginname
+                                     )
+    else:
+        # user not logged in
+        response = flask.make_response(flask.render_template('index.html',
+                                                             servs=serverinfo,
+                                                             curtime=curtimestr,
+                                                             timeleft=timeleft
+                                                             )
+                                       )
+        if res == "bad_cookie":
+            response.set_cookie("kkkeks", '', expires=0)
+        return response
 
 
 @app.route('/', methods=['POST'])
@@ -134,7 +154,8 @@ def show_login_page_on_button():
         res = um.login(flask.request.form["login_usr"], cryptpw)
         if res:
             tm_login = um.get_tm_login(flask.request.form["login_usr"])
-            response = flask.make_response(flask.render_template('login.html', mode="l", state=True))
+            #response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
+            response = flask.redirect("/")
             response.set_cookie("kkkeks", json.dumps({"user": flask.request.form["login_usr"],
                                                       "h": cryptpw, "tm_login": tm_login}))
             return response
@@ -164,8 +185,7 @@ def show_login_page():
             # user wants to register
             return flask.render_template('login.html', mode="r")
     elif res:
-        return flask.render_template('error.html', error="You are already logged in. "
-                                                         "Logging out currently is not supported, delete cookies...")
+        return flask.render_template('login.html', mode="l", state=True, loginname=json.loads(flask.request.cookies.get("kkkeks"))["user"])
     else:
         response = flask.make_response(flask.render_template('login.html', mode="l", state=False))
         response.set_cookie("kkkeks", json.dumps({"user": "", "h": ""}), expires=0)
@@ -176,9 +196,7 @@ def show_login_page():
 def show_user_page():
     res = check_login(flask.request.cookies.get("kkkeks"))
     if res == "bad_cookie" or not res:      # if bad cookie or bad login in cookie
-        return flask.render_template("error.html", error="You Login-Info in cookies is bad. "
-                                                         "Please clear cookies for this page!")
-        # TODO: Delete cookie here
+        return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
     elif res:
         um = UserMngr(config)
         username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
@@ -193,7 +211,8 @@ def show_user_page():
                                      useralarms=alarms,
                                      discord_id=discord_id,
                                      tm_login=tm_login,
-                                     alarm_enabled=True if discord_id != "" else False
+                                     alarm_enabled=True if discord_id != "" else False,
+                                     loginname=username
                                      )
     else:
         # TODO: Delete cookie here

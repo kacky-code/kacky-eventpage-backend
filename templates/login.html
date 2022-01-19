@@ -20,17 +20,30 @@
     <title>KK7 Map Schedule</title>
 </head>
 <body>
+<div class="log-reg">
+    {% if loginname %}
+        <h4>Hello {{ loginname }}!</h4>
+        <a href="user">
+            <button type="submit">Settings</button>
+        </a>
+        <button type="submit" onclick="logout()">Logout</button>
+        <script defer>
+            function logout() {
+                document.cookie = "kkkeks=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+                location.reload();
+            }
+        </script>
+    {% endif %}
+</div>
 <div class="container">
     {% if mode == "tmp" %}
         <!-- successfully registered!-->
-        You were successfully registered! <a href="/login">Please log in now!</a> (Forwarding in 5s).
+        <h1>You were successfully registered! <a href="/login">Please log in now!</a> (Forwarding in 5s).</h1>
     {% else %}
 
         {% if state %}
-        You are logged in!
-        {% endif %}
-
-        {% if mode == "l" %}
+            <h3>You are already logged in as {{ loginname }}!</h3>
+        {% elif mode == "l" %}
         <!-- Login block -->
         <form id="login" method="POST">
             <input type="text" name="login_usr" placeholder="Username"/>
