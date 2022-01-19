@@ -160,7 +160,7 @@
             ><!--
             --><span style="color: #0f4">#{{ searchtext }}</span>
           </strong>
-          will next be played in:
+          will next be played at:
         </p>
         {% endif %} {% endif %}
         <div class="server-grid">
@@ -169,14 +169,19 @@
             <h3 class="server-title">
               <img class="icon-small" src="/static/bare-metal-server.svg" />
               <span
-                ><!-- {{ d[1]|safe }} -->{{ d[1].split(" - ")[1]|safe }}</span
+                >{{ d[1].split(" - ")[1]|safe }}</span
               >
             </h3>
             <p id="time-left-server">
-              <span class="time">{{d[0][0]}}</span>
-              <span class="time-server-search">Hours</span>
-              <span class="time">{{d[0][1]}}</span>
-              <span class="time-server-search">Minutes</span>
+              <span class="time-server-search">Next play time:</span>
+              <span class="time"><script>
+                  date = new Date()
+                  now = date.getTime()
+                  juke = now + parseInt({{ d[0][0] }}) * 3600000 + parseInt({{ d[0][1] }}) * 60000;
+                  juke_date = new Date(juke)
+                  document.write(juke_date.getHours() + ":" + juke_date.getMinutes())
+              </script>
+              </span>
             </p>
           </div>
           {% endfor %}
