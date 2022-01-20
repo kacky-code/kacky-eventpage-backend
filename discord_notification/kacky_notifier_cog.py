@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import discord
 import requests
@@ -18,7 +19,7 @@ class MyCog(commands.Cog):
         self.loggername = "kk_discord_bot"
         self.logger = logging.getLogger(self.loggername)
 
-        with open("/var/www/flask/kim_kk_dev_site/bot.yaml") as b:
+        with open(Path(__file__).parents[1] / "bot.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
         self.guild_id = conf["guild"]
         if self.guild_id == "":
