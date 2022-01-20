@@ -16,7 +16,6 @@ config = {}
 def get_pagedata(rawservernum = False):
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
-    api = KackyAPIHandler(config)
     api.get_mapinfo()
     curmaps = list(map(lambda s: s.cur_map, api.servers.values()))
     ttl = datetime.datetime.strptime(config["compend"],
@@ -82,7 +81,6 @@ def on_map_play_search():
                                      searched=True, badinput=True,
                                      timeleft=timeleft)
 
-    api = KackyAPIHandler(config)
     api.get_mapinfo()
     # input seems ok, try to find next time map is played
     deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
@@ -154,6 +152,8 @@ elif config["logtype"] == "FILE":
 else:
     print("ERROR: Logging not correctly configured!")
     exit(1)
+
+api = KackyAPIHandler(config)
 
 # Set up logging
 logger = logging.getLogger(config["logger_name"])
