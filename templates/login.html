@@ -46,26 +46,64 @@
         {% elif mode == "l" %}
         <!-- Login block -->
         <form id="login" method="POST">
-            <input type="text" name="login_usr" placeholder="Username"/>
-            <input type="password" name="login_pwd" placeholder="Password"/>
-            <button type="submit" name="login_submit">Login</button>
+            <table>
+                <tr>
+                    <td>Username: </td>
+                    <td></label><input type="text" name="login_usr" placeholder="Username"/></td>
+                </tr>
+                <tr>
+                    <td>Password: </td>
+                    <td><input type="password" name="login_pwd" placeholder="Password"/></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><button type="submit" name="login_submit">Login</button></td>
+                </tr>
+                <tr>
+            </table>
         </form>
         {% else %}
         <!-- Login block -->
         <form id="login" method="POST">
-            <input type="text" name="reg_usr" placeholder="Username"/>
-            <br>
-            <input type="password" name="reg_pwd" placeholder="Password"/>
-            <br>
-            <input type="password" name="reg_mail" placeholder="Mail Address"/>
-            <br>
-            Beware, we just store a hash of your mail address.<br>
-            Therefore you will need to remember either your password or mail address.<br>
-            F if you forget both.<br>
-            On the upside, hackers don't get your data and GDPR can go fuck itself :3
+            <table>
+                <tr>
+                    <td>Username:</td>
+                    <td><input type="text" name="reg_usr" placeholder="Username"/></td>
+                </tr>
+                <tr>
+                    <td>Password: </td>
+                    <td><input type="password" name="reg_pwd" placeholder="Password"/></td>
+                </tr>
+                <tr>
+                    <td>EMail-Address: </td>
+                    <td><input type="password" name="reg_mail" placeholder="Mail Address"/></td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        Beware, we just store a hash of your mail address.<br>
+                        Therefore you will need to remember either your password or mail address.<br>
+                        F if you forget both.<br>
+                    <td>
+                </tr>
+            </table>
             <br>
             <button type="submit" name="login_reg">Register</button>
         </form>
+	<br>
+	<br>
+	<br>
+	<br>
+	Why register?<br>
+	This website not only can show you the maps currently played and give you times when a specific map will come up, it also can send you alarms via Discord.
+	But to ping you there, it needs your Discord name, so you need an account to set that.<br>
+	<br>
+	Do I really want to give my data to a poorly coded website?<br>
+	Check the source code, everything that is not public (e. g. Discord handle, TM login are public) is stored as a hash.<br>
+	Neither the owners of the database can read the data, nor can some random "hackers". Doing it like this even does save us trouble with GDPR ^^.<br>
+	So your data is save.<br>
+	<br>
+	Why do you need my email address?<br>
+	KK/KR is only played a couple of times a year, so somebody is bound to forget their password. Mail is just some way to reset that. (well, once corkscrew does implement that...)<br>
+	But when you want to reset your password, you will have to still know that mail address, as we do not store it in cleartext. Therefore if you forget both, F.<br>
         {% endif %}
     {% endif %}
 </div>
