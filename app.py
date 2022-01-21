@@ -276,7 +276,7 @@ def stats():
 
 
 @app.route('/data.json')
-def json_data_provider():
+def json_serverdata_provider():
     serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
     jsonifythis = {}
     for elem in serverinfo:
@@ -287,6 +287,15 @@ def json_data_provider():
     jsonifythis["timeleft"] = timeleft
     jsonifythis["curtimestr"] = curtimestr
     return json.dumps(jsonifythis)
+
+
+@app.route('/fin.json')
+def json_fin_provider():
+    tm_login = json.loads(flask.request.cookies.get("kkkeks"))["tm_login"]
+    if tm_login != "":
+        return api.get_fin_info(tm_login)
+    else:
+        return ""
 
 
 #                    _

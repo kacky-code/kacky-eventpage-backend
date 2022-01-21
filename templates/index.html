@@ -198,13 +198,13 @@
                         >
                     </h3>
                     <p id="time-left-server">
-                        <span class="time-server-search">Next play time:</span>
+                        <span class="time-server-search">Next play time (yes, your timezone):</span>
                         <span class="time"><script>
-                  date = new Date()
-                  now = date.getTime()
+                  date = new Date();
+                  now = date.getTime();
                   juke = now + parseInt({{ d[0][0] }}) * 3600000 + parseInt({{ d[0][1] }}) * 60000;
-                  juke_date = new Date(juke)
-                  document.write(juke_date.getHours().toString().padStart(2, "0") + ":" + juke_date.getMinutes().toString().padStart(2, "0"))
+                  juke_date = new Date(juke);
+                  document.write(juke_date.getHours().toString().padStart(2, "0") + ":" + juke_date.getMinutes().toString().padStart(2, "0"));
               </script>
               </span>
                     </p>
