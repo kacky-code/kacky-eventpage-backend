@@ -91,6 +91,10 @@ h3 {
   font-size: 1.5rem;
 }
 
+h4 {
+  letter-spacing: 0em;
+}
+
 p {
   margin-bottom: 0.8em;
 }
@@ -342,6 +346,132 @@ footer p {
   margin-right: 1rem;
   font-size: 14;
   font-style: italic;
+}
+
+.log-reg {
+  display: flex;
+  align-items: baseline;
+  justify-content: end;
+  gap: 0.5rem;
+
+  margin: 1rem 2rem;
+}
+
+.log-reg button {
+  border: 0;
+  padding: 0.3rem 3rem;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 5rem;
+
+  background-color: rgb(136, 255, 0);
+  box-shadow: 0 0 5px rgba(68, 255, 0, 0.5), 0 0 10px rgba(68, 255, 0, 0.7);
+  z-index: 3;
+
+  transition: background-color 0.2s ease;
+}
+
+.log-reg button:hover {
+  background-color: #6a0;
+}
+
+.log-reg .spacer {
+  flex-grow: 1;
+}
+
+.settings {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: start;
+  gap: 0.5rem;
+
+  margin: 1rem 2rem;
+}
+
+.settings .break {
+  flex-basis: 100%;
+  height: 0;
+}
+
+.settings .text {
+  display: inline;
+  flex: 1 0 30%;
+  flex-grow: 1;
+}
+
+.settings input {
+
+}
+
+.settings button {
+  border: 0;
+  padding: 0.3rem 3rem;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 5rem;
+
+  background-color: rgb(136, 255, 0);
+  box-shadow: 0 0 5px rgba(68, 255, 0, 0.5), 0 0 10px rgba(68, 255, 0, 0.7);
+  z-index: 3;
+
+  transition: background-color 0.2s ease;
+}
+
+.alarm {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: start;
+  gap: 0.5rem;
+
+  margin: 1rem 2rem;
+}
+
+.alarm button:hover {
+  background-color: #6a0;
+}
+
+.alarm button {
+  border: 0;
+  padding: 0.3rem 3rem;
+  font-family: "Roboto", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 5rem;
+
+  background-color: rgb(136, 255, 0);
+  box-shadow: 0 0 5px rgba(68, 255, 0, 0.5), 0 0 10px rgba(68, 255, 0, 0.7);
+  z-index: 3;
+
+  transition: background-color 0.2s ease;
+}
+
+.settings button:hover {
+  background-color: #6a0;
+}
+
+.alarm_table table {
+  width: 100%;
+}
+
+table.alarm_table td {
+  width: 5rem;
+  text-align: right;
+  height: 2em;
+}
+
+table.alarm_table td .no-align{
+  width: 5rem;
+  height: 2em;
+  text-align: left;
 }
 
 @media only screen and (max-width: 768px) {

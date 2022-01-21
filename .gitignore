@@ -2,4 +2,6 @@ visits.log
 venv
 .idea
 *__pycache__/
+stuff.db
 static/mapthumbs
+bot.yaml

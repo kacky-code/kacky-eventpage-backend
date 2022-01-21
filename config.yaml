@@ -9,6 +9,7 @@ mapchangetime_s: 45
 log_visits: 1 # 0, 1
 visits_logfile: visits.log # might require absolute path
 enable_stats_page: True # Turning this on provides a DDOS attack vector
+enable_discord_bot: True
 
 # KK META INFO
 compend: 30.01.2022 22:00
