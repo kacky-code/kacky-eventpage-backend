@@ -72,8 +72,14 @@ class KackyAPIHandler:
     def __init__(self, config: dict):
         self.config = config
         self.logger = logging.getLogger(self.config["logger_name"])
+        self.last_update = datetime.datetime.fromtimestamp(0)
 
     def get_mapinfo(self):
+        if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1):
+            # if last update is not older than one minute, use cached data
+            self.logger.info("Use cached self.servers.")
+            return
+
         self.logger.info("Updating self.servers.")
         try:
             krdata = requests.get("https://kk.kackiestkacky.com/api/").json()
@@ -103,6 +109,8 @@ class KackyAPIHandler:
 
             # update existing ServerInfo object
             self.servers[server].update_info(d)
+
+        self.last_update = datetime.datetime.now()
 
     def get_fin_info(self, tmlogin):
         try:
