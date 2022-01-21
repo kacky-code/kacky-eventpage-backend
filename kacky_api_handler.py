@@ -121,6 +121,3 @@ class KackyAPIHandler:
                                   error="Could not contact KK server. RIP!")
         return findata
 
-if __name__ == "__main__":
-    k = KackyAPIHandler({"logger_name": "bnl"})
-    print(k.get_fin_info("amgreborn"))

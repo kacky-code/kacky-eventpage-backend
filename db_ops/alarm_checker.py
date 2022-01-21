@@ -7,8 +7,8 @@ from usermanagement.usermanager import UserMngr
 class AlarmChecker:
     def __init__(self, config):
         # set up database connection to manage projects
-#        self.connection = sqlite3.connect(pathlib.Path(__file__).parents[1] / "stuff.db")
-        self.connection = sqlite3.connect("/var/www/flask/kim_kk_dev_site/stuff.db")
+        self.connection = sqlite3.connect(pathlib.Path(__file__).parents[1] / "stuff.db")
+#        self.connection = sqlite3.connect("/var/www/flask/kim_kk_dev_site/stuff.db")
         self.cursor = self.connection.cursor()
         self.config = config
 
