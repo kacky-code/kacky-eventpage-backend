@@ -253,7 +253,8 @@ def show_user_page_on_button():
                                          useralarms=alarms,
                                          discord_id=discord_id,
                                          tm_login=tm_login,
-                                         alarm_enabled=True if discord_id != "" else False
+                                         alarm_enabled=True if discord_id != "" else False,
+                                         loginname=username
                                          ))
         if cookieupdate:
             response.set_cookie("kkkeks", json.dumps({"user": username,
