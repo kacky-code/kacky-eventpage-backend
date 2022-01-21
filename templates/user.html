@@ -77,14 +77,14 @@
             {% for row in range(maplist|count // 5) %}
                 <tr >
                     {% for col in range(5) %}
-                        <td>{{ maplist[row * col + col] }}</td>
+                        <td>{{ maplist[row * 5 + col] }}</td>
                         <td class="no-align">
-                            {% if alarm_enabled and maplist[row * col + col] in useralarms %}
-                                <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * col + col] }}" checked="checked" />
-                            {% elif alarm_enabled and maplist[row * col + col] not in useralarms %}
-                                <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * col + col] }}" />
+                            {% if alarm_enabled and maplist[row * 5 + col] in useralarms %}
+                                <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * 5 + col] }}" checked="checked" />
+                            {% elif alarm_enabled and maplist[row * 5 + col] not in useralarms %}
+                                <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * 5 + col] }}" />
                             {% else %}
-                                <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * col + col] }}" disabled="disabled" />
+                                <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * 5 + col] }}" disabled="disabled" />
                             {% endif %}
                         </td>
                     {% endfor %}
