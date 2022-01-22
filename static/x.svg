@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" id="icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="20px" y="20px"
+	 viewBox="0 0 13 10" preserveAspectRatio="none" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+  <style type="text/css">
+	.st0{
+		fill:none;
+	}
+  </style>
+  <g transform="translate(-2.0,-2.2)">
+	<path style="fill:red" d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+  </g>
+</svg>

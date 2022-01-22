@@ -164,6 +164,20 @@ section h2 {
 .next-map-icon {
   width: 20px;
   height: 20px;
+  margin-right: 0.8rem;
+}
+
+.current-map-finished-icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 0.8rem;
+}
+
+.next-map-finished-icon {
+  width: 20px;
+  height: 20px;
+  margin-left: 0.2rem;
+  margin-right: 0.8rem;
 }
 
 .next-map-number {
@@ -177,7 +191,6 @@ section h2 {
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  gap: 1rem;
   margin-top: 0.25rem;
 }
 

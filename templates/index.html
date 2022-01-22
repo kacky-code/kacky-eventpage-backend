@@ -109,21 +109,28 @@
                             ><!--
                           --><span style="color: #a00">y </span
                             ><!--
-                          --><span class="current-map-id" style="color: #0f4">#{{ serv[1] }}</span>
+                          -->
+							<span class="map-id current-map-id" data-mapid="{{ serv[1] }}" style="color: #0f4">#{{ serv[1] }}</span>
+							 {% if loginname and serv[1] in finlist.mapids %}
+								<img class="current-map-finished-icon finish-icon" src="/static/check.svg"/>
+							 {% elif loginname %}
+								<img class="current-map-finished-icon finish-icon" src="/static/x.svg"/>
+							 {% endif %}
                             </p>
                         </div>
 
                         <div class="b">
                             <div class="next-map-wrapper">
-                                <img class="next-map-icon" src="/static/chevron--right.svg"/>
-                                <span class="next-map-number hover-preview" data-mapid="{{ serv[3][1] }}"
-                                      style="color: #0f4"> #{{ serv[3][1] }}</span>
-                                <img class="next-map-icon" src="/static/chevron--right.svg"/>
-                                <span class="next-map-number hover-preview" data-mapid="{{ serv[3][2] }}"
-                                      style="color: #0f4"> #{{ serv[3][2] }} </span>
-                                <img class="next-map-icon" src="/static/chevron--right.svg"/>
-                                <span class="next-map-number hover-preview" data-mapid="{{ serv[3][3] }}"
-                                      style="color: #0f4"> #{{ serv[3][3] }} </span>
+								{% for i in range(1,4) %}
+									<img class="next-map-icon" src="/static/chevron--right.svg"/>
+									<span class="map-id next-map-number hover-preview" data-mapid="{{ serv[3][i] }}"
+										  style="color: #0f4"> #{{ serv[3][i] }}</span>
+									{% if loginname and serv[3][i] in finlist.mapids %}
+										<img class="next-map-finished-icon finish-icon" src="/static/check.svg"/>
+									{% elif loginname %}
+										<img class="next-map-finished-icon finish-icon" src="/static/x.svg"/>
+									{% endif %}
+                                {% endfor %}
                             </div>
                         </div>
 
@@ -287,6 +294,18 @@
             [...document.getElementsByClassName("map-thumbnail")].map((el, idx) => el.src = `${location.origin}/static/mapthumbs/${currentMapIds[idx]}_small.jpg`);
             // set all currently shown thumbnails to display: none on update, else they will show permanently and cannot be removed by user
             [...document.getElementById("imagecontainer").children].map(el => el.style.display = 'none');
+			
+			fetch('fin.json').then(res => res.json()).then(res => {
+				let finishedMapIds = res.mapids;
+				[...document.getElementsByClassName("map-id")].map((el, idx) => {
+					if (finishedMapIds.includes(parseInt(el.getAttribute('data-mapid')))) {
+						document.getElementsByClassName("finish-icon")[idx].src = document.getElementsByClassName("finish-icon")[idx].src.replace('x', 'check');
+					}
+					else {
+						document.getElementsByClassName("finish-icon")[idx].src = document.getElementsByClassName("finish-icon")[idx].src.replace('check', 'x');
+					}
+				});
+			});
         });
     }
 

@@ -85,7 +85,8 @@ def index():  # put application's code here
                                      servs=serverinfo,
                                      curtime=curtimestr,
                                      timeleft=timeleft,
-                                     loginname=loginname
+                                     loginname=loginname,
+                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
                                      )
     else:
         # user not logged in
@@ -118,7 +119,9 @@ def on_map_play_search():
                                      servs=serverinfo,
                                      curtime=curtimestr,
                                      searched=True, badinput=True,
-                                     timeleft=timeleft)
+                                     timeleft=timeleft,
+                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     )
     # check if input is in current map pool
     if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
         # not in current map pool
@@ -126,7 +129,9 @@ def on_map_play_search():
                                      servs=serverinfo,
                                      curtime=curtimestr,
                                      searched=True, badinput=True,
-                                     timeleft=timeleft)
+                                     timeleft=timeleft,
+                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     )
 
     api.get_mapinfo()
     # input seems ok, try to find next time map is played
@@ -139,7 +144,9 @@ def on_map_play_search():
                                  curtime=curtimestr,
                                  searched=True, searchtext=search_map_id,
                                  timeleft=timeleft,
-                                 deltas=deltas)
+                                 deltas=deltas,
+                                 finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                 )
 
 
 @app.route('/login', methods=['POST'])
@@ -291,11 +298,20 @@ def json_serverdata_provider():
 
 @app.route('/fin.json')
 def json_fin_provider():
-    tm_login = json.loads(flask.request.cookies.get("kkkeks"))["tm_login"]
-    if tm_login != "":
-        return api.get_fin_info(tm_login)
-    else:
-        return ""
+    return build_fin_json(flask.request.cookies.get("kkkeks"))
+
+
+def build_fin_json(cookie):
+    try:
+        tm_login = json.loads(cookie)["tm_login"]
+        if tm_login != "":
+            fins = api.get_fin_info(tm_login)["finishes"]
+            mapids = list(map(lambda m: int(m), api.get_fin_info(tm_login)["mapids"]))
+            return {"finishes":fins,"mapids":mapids}
+        else:
+            return {"finishes":0,"mapids":[]}
+    except Exception:
+        return {"finishes":0,"mapids":[]}
 
 
 #                    _
