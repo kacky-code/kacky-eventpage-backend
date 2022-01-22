@@ -72,12 +72,16 @@
 <div class="alarm">
     <form id="save_alarms" method="POST">
         <button type="submit" name="user_save" value="alarms">Save Alarms</button>
-        <br/>
+        <br/>{{ finlist }}
         <table class="alarm_table">
             {% for row in range(maplist|count // 5) %}
                 <tr >
                     {% for col in range(5) %}
-                        <td>{{ maplist[row * 5 + col] }}</td>
+                        {% if maplist[row * 5 + col] | int in finlist["mapids"] %}
+                            <td style="color: #00aa00;">{{ maplist[row * 5 + col] }}</td>
+                        {% else %}
+                            <td style="color: red;">{{ maplist[row * 5 + col] }}</td>
+                        {% endif %}
                         <td class="no-align">
                             {% if alarm_enabled and maplist[row * 5 + col] in useralarms %}
                                 <input type="checkbox" class="alarm_selector" name="alarm_selector" value="{{ maplist[row * 5 + col] }}" checked="checked" />

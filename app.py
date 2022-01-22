@@ -217,7 +217,8 @@ def show_user_page():
                                      discord_id=discord_id,
                                      tm_login=tm_login,
                                      alarm_enabled=True if discord_id != "" else False,
-                                     loginname=username
+                                     loginname=username,
+                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
                                      )
     else:
         # TODO: Delete cookie here
@@ -261,8 +262,10 @@ def show_user_page_on_button():
                                          discord_id=discord_id,
                                          tm_login=tm_login,
                                          alarm_enabled=True if discord_id != "" else False,
-                                         loginname=username
-                                         ))
+                                         loginname=username,
+                                         finlist=build_fin_json(f'{{"tm_login": "{tm_login}"}}')
+                                         )
+                                       )
         if cookieupdate:
             response.set_cookie("kkkeks", json.dumps({"user": username,
                                                       "h": json.loads(flask.request.cookies.get("kkkeks"))["h"],
