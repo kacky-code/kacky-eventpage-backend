@@ -159,7 +159,7 @@ def show_login_page_on_button():
         res = um.login(flask.request.form["login_usr"], cryptpw)
         if res:
             tm_login = um.get_tm_login(flask.request.form["login_usr"])
-            #response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
+            # response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
             response = flask.redirect("/")
             response.set_cookie("kkkeks", json.dumps({"user": flask.request.form["login_usr"],
                                                       "h": cryptpw, "tm_login": tm_login}))
@@ -190,7 +190,8 @@ def show_login_page():
             # user wants to register
             return flask.render_template('login.html', mode="r")
     elif res:
-        return flask.render_template('login.html', mode="l", state=True, loginname=json.loads(flask.request.cookies.get("kkkeks"))["user"])
+        return flask.render_template('login.html', mode="l", state=True,
+                                     loginname=json.loads(flask.request.cookies.get("kkkeks"))["user"])
     else:
         response = flask.make_response(flask.render_template('login.html', mode="l", state=False))
         response.set_cookie("kkkeks", json.dumps({"user": "", "h": ""}), expires=0)
@@ -200,7 +201,7 @@ def show_login_page():
 @app.route('/user')
 def show_user_page():
     res = check_login(flask.request.cookies.get("kkkeks"))
-    if res == "bad_cookie" or not res:      # if bad cookie or bad login in cookie
+    if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
         return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
     elif res:
         um = UserMngr(config)
@@ -209,7 +210,7 @@ def show_user_page():
         tm_login = um.get_tm_login(username)
         ac = AlarmChecker(config)
         alarms = ac.get_alarms_for_user(username)
-        maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1]+1)))
+        maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
         return flask.render_template('user.html',
                                      username=username,
                                      maplist=maplist,
@@ -228,8 +229,8 @@ def show_user_page():
 @app.route('/user', methods=['POST'])
 def show_user_page_on_button():
     res = check_login(flask.request.cookies.get("kkkeks"))
-    maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1]+1)))
-    if res == "bad_cookie" or not res:      # if bad cookie or bad login in cookie
+    maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
+    if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
         return flask.render_template("error.html", error="You Login-Info in cookies is bad. "
                                                          "Please clear cookies for this page!")
         # TODO: Delete cookie here
@@ -240,7 +241,7 @@ def show_user_page_on_button():
         if flask.request.form["user_save"] == "discord_id":
             # user clicked button to save discord ID
             um.set_discord_id(username, flask.request.form["discord_id"])
-            #return flask.redirect('user')
+            # return flask.redirect('user')
         elif flask.request.form["user_save"] == "tm_id":
             # user clicked button to save tm login
             um.set_tm_login(username, flask.request.form["tm_id"])
@@ -250,21 +251,21 @@ def show_user_page_on_button():
             selected_maps = flask.request.form.getlist("alarm_selector")
             ac = AlarmChecker(config)
             ac.set_alarms_for_user(username, selected_maps)
-            #return flask.redirect("user")
+            # return flask.redirect("user")
         ac = AlarmChecker(config)
         alarms = ac.get_alarms_for_user(username)
         discord_id = um.get_discord_id(username)
         tm_login = um.get_tm_login(username)
         response = flask.make_response(flask.render_template('user.html',
-                                         username=username,
-                                         maplist=maplist,
-                                         useralarms=alarms,
-                                         discord_id=discord_id,
-                                         tm_login=tm_login,
-                                         alarm_enabled=True if discord_id != "" else False,
-                                         loginname=username,
-                                         finlist=build_fin_json(f'{{"tm_login": "{tm_login}"}}')
-                                         )
+                                                             username=username,
+                                                             maplist=maplist,
+                                                             useralarms=alarms,
+                                                             discord_id=discord_id,
+                                                             tm_login=tm_login,
+                                                             alarm_enabled=True if discord_id != "" else False,
+                                                             loginname=username,
+                                                             finlist=build_fin_json(f'{{"tm_login": "{tm_login}"}}')
+                                                             )
                                        )
         if cookieupdate:
             response.set_cookie("kkkeks", json.dumps({"user": username,
@@ -310,11 +311,11 @@ def build_fin_json(cookie):
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
             mapids = list(map(lambda m: int(m), api.get_fin_info(tm_login)["mapids"]))
-            return {"finishes":fins,"mapids":mapids}
+            return {"finishes": fins, "mapids": mapids}
         else:
-            return {"finishes":0,"mapids":[]}
+            return {"finishes": 0, "mapids": []}
     except Exception:
-        return {"finishes":0,"mapids":[]}
+        return {"finishes": 0, "mapids": []}
 
 
 #                    _
@@ -365,5 +366,5 @@ if config["log_visits"]:
     f.close()
 
 logger.info("Starting application.")
-#app.run(debug=True, host=config["bind_hosts"], port=config["port"])
+# app.run(debug=True, host=config["bind_hosts"], port=config["port"])
 app.run(host=config["bind_hosts"], port=config["port"])

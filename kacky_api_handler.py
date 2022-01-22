@@ -8,7 +8,6 @@ import requests as requests
 from datastructures.server import ServerInfo
 from tm_format_resolver import TMstr
 
-
 TEST_API_RESPONSE = {
     "$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 4":
         {
@@ -89,10 +88,10 @@ class KackyAPIHandler:
                                   error="Could not contact KK server. RIP!")
             return
         except json.decoder.JSONDecodeError:
-            #self.logger.error("Using TEST_API_RESPONSE")
+            # self.logger.error("Using TEST_API_RESPONSE")
             # flask.render_template('error.html',
             #                      error="KK API returned strange data. RIP!")
-            #krdata = TEST_API_RESPONSE
+            # krdata = TEST_API_RESPONSE
             self.logger.error("Could not connect to KK API!")
             flask.render_template('error.html',
                                   error="Could not contact KK server. RIP!")
@@ -120,4 +119,3 @@ class KackyAPIHandler:
             flask.render_template('error.html',
                                   error="Could not contact KK server. RIP!")
         return findata
-

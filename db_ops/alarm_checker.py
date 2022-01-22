@@ -8,7 +8,7 @@ class AlarmChecker:
     def __init__(self, config):
         # set up database connection to manage projects
         self.connection = sqlite3.connect(pathlib.Path(__file__).parents[1] / "stuff.db")
-#        self.connection = sqlite3.connect("/var/www/flask/kim_kk_dev_site/stuff.db")
+        #        self.connection = sqlite3.connect("/var/www/flask/kim_kk_dev_site/stuff.db")
         self.cursor = self.connection.cursor()
         self.config = config
 
@@ -32,8 +32,8 @@ class AlarmChecker:
 
     def get_alarms_for_user(self, user):
         query = "SELECT setalarms FROM alarms WHERE username = ?;"
-        req = self.cursor.execute(query, (user, )).fetchall()
-        if not req:     # no values
+        req = self.cursor.execute(query, (user,)).fetchall()
+        if not req:  # no values
             return []
         alarmlist = req[0][0].split()
         return alarmlist
@@ -45,7 +45,7 @@ class AlarmChecker:
 
     def get_users_for_map(self, mapid):
         query = "SELECT username FROM alarms WHERE setalarms LIKE ?;"
-        req = self.cursor.execute(query, ("%" + str(mapid) + "%", )).fetchall()
+        req = self.cursor.execute(query, ("%" + str(mapid) + "%",)).fetchall()
         return req
 
     def get_discord_ids_for_map(self, mapid):
