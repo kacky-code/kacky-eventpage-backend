@@ -111,10 +111,12 @@
                             ><!--
                           -->
 							<span class="map-id current-map-id" data-mapid="{{ serv[1] }}" style="color: #0f4">#{{ serv[1] }}</span>
-							 {% if loginname and serv[1] in finlist.mapids %}
-								<img class="current-map-finished-icon finish-icon" src="/static/check.svg"/>
-							 {% elif loginname %}
-								<img class="current-map-finished-icon finish-icon" src="/static/x.svg"/>
+							 {% if loginname %}
+								{% if serv[1] in finlist.mapids %}
+									<img class="current-map-finished-icon finish-icon" src="/static/check.svg"/>
+								 {% else %}
+									<img class="current-map-finished-icon finish-icon" src="/static/x.svg"/>
+								 {% endif %}
 							 {% endif %}
                             </p>
                         </div>
@@ -125,10 +127,12 @@
 									<img class="next-map-icon" src="/static/chevron--right.svg"/>
 									<span class="map-id next-map-number hover-preview" data-mapid="{{ serv[3][i] }}"
 										  style="color: #0f4"> #{{ serv[3][i] }}</span>
-									{% if loginname and serv[3][i] in finlist.mapids %}
-										<img class="next-map-finished-icon finish-icon" src="/static/check.svg"/>
-									{% elif loginname %}
-										<img class="next-map-finished-icon finish-icon" src="/static/x.svg"/>
+									{% if loginname %}	
+										{% if serv[3][i] in finlist.mapids %}
+											<img class="next-map-finished-icon finish-icon" src="/static/check.svg"/>
+										{% else %}
+											<img class="next-map-finished-icon finish-icon" src="/static/x.svg"/>
+										{% endif %}
 									{% endif %}
                                 {% endfor %}
                             </div>
@@ -268,7 +272,7 @@
                     }`)
             );
     }
-
+	
     function loadCounterElements() {
         // fetch new data from servers
         fetch('./data.json').then(res => res.text()).then(res => {
@@ -283,7 +287,10 @@
             // update time played elements. subtracting 20 seconds because xaseco starts counting early
             serverInfo.map((el, idx) => counterElements[idx].secondsPassed = parseInt(el[1]) - 23);
             // update current ids elements
-            [...document.getElementsByClassName("current-map-id")].map((el, idx) => el.innerText = `#${currentMapIds[idx]}`);
+            [...document.getElementsByClassName("current-map-id")].map((el, idx) => {
+				el.setAttribute('data-mapid', `${currentMapIds[idx]}`);
+				el.innerText = `#${currentMapIds[idx]}`
+			});
             // update next ids elements
             [...document.getElementsByClassName("next-map-wrapper")].map(el => [...el.querySelectorAll('.hover-preview')]).map((el, idxNextMapsServer) => [...el].map((el, idxNextMap) => {
                 let nextMapId = allNextMapIds[idxNextMapsServer][idxNextMap];
@@ -295,17 +302,20 @@
             // set all currently shown thumbnails to display: none on update, else they will show permanently and cannot be removed by user
             [...document.getElementById("imagecontainer").children].map(el => el.style.display = 'none');
 			
-			fetch('fin.json').then(res => res.json()).then(res => {
-				let finishedMapIds = res.mapids;
-				[...document.getElementsByClassName("map-id")].map((el, idx) => {
-					if (finishedMapIds.includes(parseInt(el.getAttribute('data-mapid')))) {
-						document.getElementsByClassName("finish-icon")[idx].src = document.getElementsByClassName("finish-icon")[idx].src.replace('x', 'check');
-					}
-					else {
-						document.getElementsByClassName("finish-icon")[idx].src = document.getElementsByClassName("finish-icon")[idx].src.replace('check', 'x');
-					}
+			// update finished/unfinished icons in case the user is logged in
+			if (isLoggedIn) {
+				fetch('fin.json').then(res => res.json()).then(res => {
+					let finishedMapIds = res.mapids;
+					[...document.getElementsByClassName("map-id")].map((el, idx) => {
+						if (finishedMapIds.includes(parseInt(el.getAttribute('data-mapid')))) {
+							document.getElementsByClassName("finish-icon")[idx].src = document.getElementsByClassName("finish-icon")[idx].src.replace('x', 'check');
+						}
+						else {
+							document.getElementsByClassName("finish-icon")[idx].src = document.getElementsByClassName("finish-icon")[idx].src.replace('check', 'x');
+						}
+					});
 				});
-			});
+			}
         });
     }
 
@@ -404,7 +414,9 @@
         }
         return hoverElements;
     }
-
+	
+	
+	let isLoggedIn = "{{ loginname }}" != '';
 
     let lastUpdate = new Date().getTime() / 1000;
 
