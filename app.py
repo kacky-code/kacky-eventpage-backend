@@ -168,6 +168,9 @@ def show_login_page_on_button():
             return "Login failed! Check username and pwd!"
     else:
         # user wants to register
+        if flask.request.form["reg_pwd"] != flask.request.form["reg_mail"]:
+            return flask.render_template("error.html", error="Try again with matching passwords ;)\n\n\n\n\n"
+                                                             "Ignore the next line.")
         cryptpw = hashlib.sha256(flask.request.form["reg_pwd"].encode()).hexdigest()
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
         res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
