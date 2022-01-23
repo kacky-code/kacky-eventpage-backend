@@ -107,6 +107,14 @@ def on_map_play_search():
     This gets called when a search is performed
     :return:
     """
+    # check if user is logged in
+    res = check_login(flask.request.cookies.get("kkkeks"))
+    if res and res != "bad_cookie":
+        # user logged in
+        loginname = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+    else:
+        loginname = None
+
     # Get page data
     serverinfo, curtimestr, timeleft = get_pagedata()
     search_map_id = flask.request.form['map']
@@ -120,6 +128,7 @@ def on_map_play_search():
                                      curtime=curtimestr,
                                      searched=True, badinput=True,
                                      timeleft=timeleft,
+                                     loginname=loginname,
                                      finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
                                      )
     # check if input is in current map pool
@@ -130,6 +139,7 @@ def on_map_play_search():
                                      curtime=curtimestr,
                                      searched=True, badinput=True,
                                      timeleft=timeleft,
+                                     loginname=loginname,
                                      finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
                                      )
 
@@ -145,6 +155,7 @@ def on_map_play_search():
                                  searched=True, searchtext=search_map_id,
                                  timeleft=timeleft,
                                  deltas=deltas,
+                                 loginname=loginname,
                                  finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
                                  )
 
@@ -178,7 +189,7 @@ def show_login_page_on_button():
             from flask import url_for
             return flask.render_template("login.html", mode="tmp")
         else:
-            return "Registration failed! Username already exists!"
+            return flask.render_template("error.html", error="Registration failed! Username already exists!")
 
 
 @app.route('/login')
