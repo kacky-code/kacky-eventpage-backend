@@ -68,10 +68,10 @@ def check_login(cookie: str):
 def index():  # put application's code here
     global config
     
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -115,10 +115,10 @@ def on_map_play_search():
     This gets called when a search is performed
     :return:
     """
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -178,10 +178,10 @@ def on_map_play_search():
 @app.route('/login', methods=['POST'])
 @app.route('/register', methods=['POST'])
 def show_login_page_on_button():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -217,10 +217,10 @@ def show_login_page_on_button():
 @app.route('/login')
 @app.route('/register')
 def show_login_page():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -243,10 +243,10 @@ def show_login_page():
 
 @app.route('/user')
 def show_user_page():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -278,10 +278,10 @@ def show_user_page():
 
 @app.route('/user', methods=['POST'])
 def show_user_page_on_button():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -336,10 +336,10 @@ def show_user_page_on_button():
 
 @app.route('/stats')
 def stats():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -352,10 +352,10 @@ def stats():
 
 @app.route('/data.json')
 def json_serverdata_provider():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -373,10 +373,10 @@ def json_serverdata_provider():
 
 @app.route('/fin.json')
 def json_fin_provider():
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = request.environ['REMOTE_ADDR']
+    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
