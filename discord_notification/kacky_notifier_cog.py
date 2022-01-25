@@ -85,6 +85,10 @@ class MyCog(commands.Cog):
                         self.logger.error(f"ID {userid} is a bad Discord ID!")
                     except IndexError:
                         self.logger.error(f"ID {userid} has bad format (no '#')!")
+                    except AttributeError:
+                        self.logger.error(f"ID {userid} is a bad Discord ID!")
+                    except Exception as e:
+                        self.logger.error(f"Some error happened: {e}.\nLet's continue and hope this thing still works")
 
 
     @printer.before_loop
