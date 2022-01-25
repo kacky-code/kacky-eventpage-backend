@@ -73,11 +73,11 @@ class KackyAPIHandler:
         self.logger = logging.getLogger(self.config["logger_name"])
         self.last_update = datetime.datetime.fromtimestamp(0)
 
-    def get_mapinfo(self):
-        if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1):
-            # if last update is not older than one minute, use cached data
-            self.logger.info("Use cached self.servers.")
-            return
+    def update_server_info(self):
+        #if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1):
+        #    # if last update is not older than one minute, use cached data
+        #    self.logger.info("Use cached self.servers.")
+        #    return
 
         self.logger.info("Updating self.servers.")
         try:
@@ -119,3 +119,7 @@ class KackyAPIHandler:
             flask.render_template('error.html',
                                   error="Could not contact KK server. RIP!")
         return findata
+
+    def get_mapinfo(self):
+        if any(map(lambda s: s.timeplayed < 0, self.servers.values())) or self.servers == {}:
+            self.update_server_info()

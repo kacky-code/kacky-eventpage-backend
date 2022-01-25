@@ -30,12 +30,19 @@ class ServerInfo:
         self.cur_map = int(new_info["current_map"].split("#")[-1])
         self.recent = new_info["recently_played"]
         self.last_update = datetime.datetime.now()
-        self.timeplayed = int(new_info["time_played"])
+        self.timeplayed_internal = int(new_info["time_played"])
 
         # if recent maps are empty, server must have restarted. Reset playlist order
         if not self.recent:
             self.playlist.reset()
-        self.playlist.set_current_map(self.cur_map, self.timeplayed)
+        self.playlist.set_current_map(self.cur_map, self.timeplayed_internal)
 
     def find_next_play(self, searchid: int):
-        return (self.playlist.get_next_play(searchid, self.timelimit), self.name.string)
+        return self.playlist.get_next_play(searchid, self.timelimit), self.name.string
+
+    @property
+    def timeplayed(self):
+        if (datetime.datetime.now() - self.last_update).total_seconds() + self.timeplayed_internal > self.timelimit * 60:
+            return -1
+        else:
+            return (datetime.datetime.now() - self.last_update).total_seconds() + self.timeplayed_internal
