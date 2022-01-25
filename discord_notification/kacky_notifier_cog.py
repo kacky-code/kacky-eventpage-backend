@@ -19,11 +19,11 @@ class MyCog(commands.Cog):
         self.loggername = "kk_discord_bot"
         self.logger = logging.getLogger(self.loggername)
 
-        with open(Path(__file__).parents[1] / "bot.yaml") as b:
+        with open(Path(__file__).parents[1] / "secrets.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
         self.guild_id = conf["guild"]
         if self.guild_id == "":
-            raise RuntimeError("Bad values in bot.yaml!")
+            raise RuntimeError("Bad values in secrets.yaml!")
 
     def cog_unload(self):
         self.printer.cancel()

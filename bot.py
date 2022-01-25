@@ -35,13 +35,13 @@ async def on_ready():
 
 if __name__ == "__main__":
     try:
-        with open(Path(__file__).parent / "bot.yaml") as b:
+        with open(Path(__file__).parent / "secrets.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
     except FileNotFoundError:
         raise FileNotFoundException("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
     TOKEN = conf["token"]
     GUILD_ID = conf["guild"]
     if TOKEN == "" or GUILD_ID == "":
-        raise RuntimeError("Bad values in bot.yaml!")
+        raise RuntimeError("Bad values in secrets.yaml!")
     bot.load_extension("discord_notification.kacky_notifier_cog")
     bot.run(TOKEN)

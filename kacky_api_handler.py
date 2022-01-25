@@ -1,9 +1,11 @@
 import datetime
 import json
 import logging
+from pathlib import Path
 
 import flask
 import requests as requests
+import yaml
 
 from datastructures.server import ServerInfo
 from tm_format_resolver import TMstr
@@ -72,6 +74,11 @@ class KackyAPIHandler:
         self.config = config
         self.logger = logging.getLogger(self.config["logger_name"])
         self.last_update = datetime.datetime.fromtimestamp(0)
+        try:
+            with open(Path(__file__).parent / "secrets.yaml") as b:
+                self.api_pwd = yaml.load(b, yaml.FullLoader)["api_pwd"]
+        except FileNotFoundError:
+            raise FileNotFoundException("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
 
     def update_server_info(self):
         #if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1):
@@ -81,7 +88,7 @@ class KackyAPIHandler:
 
         self.logger.info("Updating self.servers.")
         try:
-            krdata = requests.get("https://kk.kackiestkacky.com/api/").json()
+            krdata = requests.get("https://kk.kackiestkacky.com/api/", data={"password": self.api_pwd}).json()
         except ConnectionError:
             self.logger.error("Could not connect to KK API!")
             flask.render_template('error.html',
@@ -113,7 +120,7 @@ class KackyAPIHandler:
 
     def get_fin_info(self, tmlogin):
         try:
-            findata = requests.post("https://kk.kackiestkacky.com/api/", data={"login": tmlogin}).json()
+            findata = requests.post("https://kk.kackiestkacky.com/api/", data={"login": tmlogin, "password": self.api_pwd}).json()
         except ConnectionError:
             self.logger.error("Could not connect to KK API!")
             flask.render_template('error.html',
