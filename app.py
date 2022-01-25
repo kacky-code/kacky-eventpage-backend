@@ -67,6 +67,14 @@ def check_login(cookie: str):
 @app.route('/')
 def index():  # put application's code here
     global config
+    
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     # Log visit (only for counting, no further info). Quite GDPR conform, right?
     with open(Path(__file__).parent / config["visits_logfile"], "a") as vf:
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
@@ -107,6 +115,13 @@ def on_map_play_search():
     This gets called when a search is performed
     :return:
     """
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     # check if user is logged in
     res = check_login(flask.request.cookies.get("kkkeks"))
     if res and res != "bad_cookie":
@@ -163,6 +178,13 @@ def on_map_play_search():
 @app.route('/login', methods=['POST'])
 @app.route('/register', methods=['POST'])
 def show_login_page_on_button():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     um = UserMngr(config)
     if flask.request.path == "/login":
         # user wants to login
@@ -195,6 +217,13 @@ def show_login_page_on_button():
 @app.route('/login')
 @app.route('/register')
 def show_login_page():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     res = check_login(flask.request.cookies.get("kkkeks"))
     if res == "bad_cookie":
         if flask.request.path == "/login":
@@ -214,6 +243,13 @@ def show_login_page():
 
 @app.route('/user')
 def show_user_page():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     res = check_login(flask.request.cookies.get("kkkeks"))
     if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
         return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
@@ -242,6 +278,13 @@ def show_user_page():
 
 @app.route('/user', methods=['POST'])
 def show_user_page_on_button():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     res = check_login(flask.request.cookies.get("kkkeks"))
     maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
     if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
@@ -293,6 +336,13 @@ def show_user_page_on_button():
 
 @app.route('/stats')
 def stats():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     global config
     if config["enable_stats_page"]:
         return flask.Flask.render_template('stats.html')
@@ -302,6 +352,13 @@ def stats():
 
 @app.route('/data.json')
 def json_serverdata_provider():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
     jsonifythis = {}
     for elem in serverinfo:
@@ -316,6 +373,13 @@ def json_serverdata_provider():
 
 @app.route('/fin.json')
 def json_fin_provider():
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        userip = request.environ['REMOTE_ADDR']
+    else:
+        userip = request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+
+    logger.info(f"Connection from {userip}")
+
     return build_fin_json(flask.request.cookies.get("kkkeks"))
 
 
