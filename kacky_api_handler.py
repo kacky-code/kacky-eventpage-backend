@@ -88,7 +88,7 @@ class KackyAPIHandler:
 
         self.logger.info("Updating self.servers.")
         try:
-            krdata = requests.get("https://kk.kackiestkacky.com/api/", data={"password": self.api_pwd}).json()
+            krdata = requests.get("https://kk.kackiestkacky.com/api/", params={"password": self.api_pwd}).json()
         except ConnectionError:
             self.logger.error("Could not connect to KK API!")
             flask.render_template('error.html',
