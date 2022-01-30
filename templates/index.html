@@ -54,8 +54,9 @@
     <!-- TODO: change me to KK logo! -->
     <img id="header-image" src="/static/KK_LOGO.png"/>
     <h1 style="text-align: center; margin-bottom: 0">Map Schedule</h1>
-    <p id="time-left">
-        {% if timeleft[3] == 1 %}
+
+    {% if timeleft[3] == 1 %}
+        <p id="time-left">
             <span id="time-title">Time left:</span>
 
             <span class="time">{{ timeleft[0] }}</span>
@@ -70,11 +71,7 @@
 
             <span class="time">{{ timeleft[2] }}</span>
             <span>Minutes</span>
-
-        {% else %}
-            <span>The Competition is over!</span>
-        {% endif %}
-    </p>
+        </p>
 
     <section>
         <h2>
@@ -225,6 +222,11 @@
             {% endfor %}
         </div>
     </section>
+    {% else %}
+        <p id="time-left">
+            <span>The Competition is over!</span>
+        </p>
+    {% endif %}
 </div>
 
 <footer>
