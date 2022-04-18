@@ -208,14 +208,15 @@ def show_login_page_on_button():
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
         res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
         if res:
-            from flask import url_for
-            return flask.render_template("login.html", mode="tmp")
+            flask.flash("Account created! Please log in now!")
+            #return flask.render_template("login.html", mode="l")
+            return flask.redirect(flask.url_for("_login"))
         else:
             return flask.render_template("error.html", error="Registration failed! Username already exists!")
 
 
-@app.route('/login')
-@app.route('/register')
+@app.route('/login', endpoint="_login")
+@app.route('/register', endpoint="_register")
 def show_login_page():
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
@@ -406,6 +407,12 @@ def build_fin_json(cookie):
 # Reading config file
 with open(Path(__file__).parent / "config.yaml", "r") as conffile:
     config = yaml.load(conffile, Loader=yaml.FullLoader)
+
+# Read flask secret (required for flask.flash and flask_login)
+with open(Path(__file__).parent / "secrets.yaml", "r") as secfile:
+    secrets = yaml.load(secfile, Loader=yaml.FullLoader)
+    app.secret_key = secrets["flask_secret"]
+    del secrets
 
 MAPIDS = (config["min_mapid"], config["max_mapid"])
 
