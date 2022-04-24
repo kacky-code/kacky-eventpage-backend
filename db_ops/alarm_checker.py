@@ -1,7 +1,7 @@
 import pathlib
 import sqlite3
 
-from usermanagement.usermanager import UserMngr
+from usermanagement.user_operations import UserMngr
 
 
 class AlarmChecker:

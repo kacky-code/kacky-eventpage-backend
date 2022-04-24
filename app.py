@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import flask
+import flask_login
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import yaml
 
@@ -45,30 +46,6 @@ def get_pagedata(rawservernum=False):
     return serverinfo, curtimestr, timeleft
 
 
-def check_login(cookie: str):
-    """
-
-    Parameters
-    ----------
-    cookie : str
-        Cookie with login info, as read by Flask
-
-    Returns
-    -------
-    Union(str, bool)
-        "bad_cookie", if cookie cannot be processed
-        True/False, depending on login info validity when cookie can be processed
-    """
-    try:
-        cookie_usercreds = json.loads(cookie)
-    except (json.JSONDecodeError, TypeError):
-        # cookie cannot be read
-        return "bad_cookie"
-    um = UserMngr(config)
-    # True/False, if login is legit
-    return um.login(cookie_usercreds["user"], cookie_usercreds["h"])
-
-
 @app.route('/')
 def index():  # put application's code here
     global config
@@ -86,20 +63,20 @@ def index():  # put application's code here
         vf.write("\n")
 
     # check if user is logged in
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
 
     # Get page data
     serverinfo, curtimestr, timeleft = get_pagedata()
 
-    if res and res != "bad_cookie":
+    if res:
         # user logged in
-        loginname = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        loginname = current_user.get_id()
         return flask.render_template('index.html',
                                      servs=serverinfo,
                                      curtime=curtimestr,
                                      timeleft=timeleft,
                                      loginname=loginname,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
     else:
         # user not logged in
@@ -109,8 +86,6 @@ def index():  # put application's code here
                                                              timeleft=timeleft
                                                              )
                                        )
-        if res == "bad_cookie":
-            response.set_cookie("kkkeks", '', expires=0)
         return response
 
 
@@ -128,10 +103,10 @@ def on_map_play_search():
     logger.info(f"Connection from {userip}")
 
     # check if user is logged in
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
     if res and res != "bad_cookie":
         # user logged in
-        loginname = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        loginname = current_user.get_id()
     else:
         loginname = None
 
@@ -149,7 +124,7 @@ def on_map_play_search():
                                      searched=True, badinput=True,
                                      timeleft=timeleft,
                                      loginname=loginname,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
     # check if input is in current map pool
     if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
@@ -160,7 +135,7 @@ def on_map_play_search():
                                      searched=True, badinput=True,
                                      timeleft=timeleft,
                                      loginname=loginname,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
 
     api.get_mapinfo()
@@ -176,7 +151,7 @@ def on_map_play_search():
                                  timeleft=timeleft,
                                  deltas=deltas,
                                  loginname=loginname,
-                                 finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                 finlist=build_fin_json()
                                  )
 
 
@@ -198,9 +173,12 @@ def show_login_page_on_button():
         #res = um.login(flask.request.form["login_usr"], cryptpw)
         res = user.login(flask.request.form["login_usr"], cryptpw)
         if res:
-            tm_login = um.get_tm_login(flask.request.form["login_usr"])
             # response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
-            response = flask.redirect("/")
+            if "forward" in flask.request.args:
+                # user tried to access a page but was not logged in. Change redirect target
+                response = flask.redirect(flask.request.args["forward"])
+            else:
+                response = flask.redirect("/")
             login_user(user)
             return response
         else:
@@ -231,10 +209,13 @@ def show_login_page():
 
     logger.info(f"Connection from {userip}")
 
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
     # user is not logged in
     if not check_user_logged_in():
         if flask.request.path == "/login":
+            if "forward" in flask.request.args:
+                # user tried accessing a blocked page. let them log in and forward them
+                return flask.render_template('login.html', mode="l", forward=flask.request.args["forward"])
             # user wants to login
             return flask.render_template('login.html', mode="l")
         else:
@@ -243,13 +224,14 @@ def show_login_page():
     # user is already logged in
     elif res:
         return flask.render_template('login.html', mode="l", state=True,
-                                     loginname=current_user)
+                                     loginname=current_user.get_id())
     else:
         # should never happen, but for good measure, log out user and show login page
-        return flask.render_template('login.html', mode="l", state=False)
+        return flask.redirect(flask.url_for("logout"))
 
 
 @app.route('/user')
+@login_required
 def show_user_page():
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
@@ -258,13 +240,14 @@ def show_user_page():
 
     logger.info(f"Connection from {userip}")
 
-    res = check_login(flask.request.cookies.get("kkkeks"))
-    if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
+    res = check_user_logged_in()
+    if not res:  # if bad cookie or bad login in cookie
         return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
     elif res:
         um = UserMngr(config)
-        username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        username = current_user.get_id()
         discord_id = um.get_discord_id(username)
+        um = UserMngr(config)
         tm_login = um.get_tm_login(username)
         ac = AlarmChecker(config)
         alarms = ac.get_alarms_for_user(username)
@@ -277,7 +260,7 @@ def show_user_page():
                                      tm_login=tm_login,
                                      alarm_enabled=True if discord_id != "" else False,
                                      loginname=username,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
     else:
         # TODO: Delete cookie here
@@ -285,6 +268,7 @@ def show_user_page():
 
 
 @app.route('/user', methods=['POST'])
+@login_required
 def show_user_page_on_button():
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
@@ -293,16 +277,13 @@ def show_user_page_on_button():
 
     logger.info(f"Connection from {userip}")
 
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
     maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
-    if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
-        return flask.render_template("error.html", error="You Login-Info in cookies is bad. "
-                                                         "Please clear cookies for this page!")
-        # TODO: Delete cookie here
+    if not res:  # if not logged in
+        return flask.render_template("error.html", error="Not logged in!")
     elif res:
         um = UserMngr(config)
-        username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
-        cookieupdate = False
+        username = current_user.get_id()
         if flask.request.form["user_save"] == "discord_id":
             # user clicked button to save discord ID
             um.set_discord_id(username, flask.request.form["discord_id"])
@@ -310,7 +291,6 @@ def show_user_page_on_button():
         elif flask.request.form["user_save"] == "tm_id":
             # user clicked button to save tm login
             um.set_tm_login(username, flask.request.form["tm_id"])
-            cookieupdate = True
         elif flask.request.form["user_save"] == "alarms":
             # user clicked button to save alarms
             selected_maps = flask.request.form.getlist("alarm_selector")
@@ -329,17 +309,28 @@ def show_user_page_on_button():
                                                              tm_login=tm_login,
                                                              alarm_enabled=True if discord_id != "" else False,
                                                              loginname=username,
-                                                             finlist=build_fin_json(f'{{"tm_login": "{tm_login}"}}')
+                                                             finlist=build_fin_json()
                                                              )
                                        )
-        if cookieupdate:
-            response.set_cookie("kkkeks", json.dumps({"user": username,
-                                                      "h": json.loads(flask.request.cookies.get("kkkeks"))["h"],
-                                                      "tm_login": flask.request.form["tm_id"]}))
         return response
     else:
+        # logout to be safe, idk how we got here
+        logout_user()
         return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
-        # TODO: Delete cookie here
+
+
+@app.route('/logout')
+@login_required
+def logout_and_redirect_index():
+    logout_user()
+    return flask.redirect("/")
+
+
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    flask.flash("You are not logged in!")
+    # return flask.render_template("login.html", mode="l")
+    return flask.redirect(flask.url_for("_login", forward=flask.request.path))
 
 
 @app.route('/stats')
@@ -388,12 +379,21 @@ def json_fin_provider():
 
     logger.info(f"Connection from {userip}")
 
-    return build_fin_json(flask.request.cookies.get("kkkeks"))
+    if not isinstance(current_user.get_id(), flask_login.AnonymousUserMixin):
+        return build_fin_json()
 
 
-def build_fin_json(cookie):
+def build_fin_json():
+    """
+
+
+    Returns
+    -------
+    Dict[str, Union[int, List[str]]]
+    """
     try:
-        tm_login = json.loads(cookie)["tm_login"]
+        um = UserMngr(config)
+        tm_login = um.get_tm_login(current_user.get_id())
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
             mapids = list(map(lambda m: int(m), api.get_fin_info(tm_login)["mapids"]))
@@ -406,11 +406,13 @@ def build_fin_json(cookie):
 
 @login_manager.user_loader
 def load_user(username):
-    u = User(username, config)
-    return u.get_id()
+    return User(username, config)
 
 
 def check_user_logged_in():
+    if isinstance(current_user, flask_login.AnonymousUserMixin):
+        # no user currently logged in
+        return False
     u = User(current_user, config)
     return u.is_authenticated()
 

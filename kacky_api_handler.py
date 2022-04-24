@@ -10,61 +10,11 @@ import yaml
 from datastructures.server import ServerInfo
 from tm_format_resolver import TMstr
 
-TEST_API_RESPONSE = {
-    "$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 4":
-        {
-            "jukebox":
-                {
-                    "flT49y2Z9zxZ9gQBcoVDMOG2k4i":
-                        {
-                            "map_name": "TryhardMania C13",
-                            "juker_login": "amgreborn",
-                            "juker_nickname": "$f00$f3b\u05d3\u05d5\u05d6\u03c2 $ga$nmgrebor$wn L\u0192s"}},
-            "recently_played":
-                [
-                    "paE_uuyNdNVghxpvlVI7AqJefWh",
-                    "iS0dXnuXbI5oHgXfTzdzGTGD427",
-                    "F0gGGv7mzA8JCf5Ub7le1PKPcWd",
-                    "aHkQ__XJk6lwq9Ne6JnopjsyPo3",
-                    "F0gGGv7mzA8JCf5Ub7le1PKPcWd"
-                ],
-            "current_map": "$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y #242"
-        },
-    "$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 5":
-        {
-            "jukebox":
-                {
-                    "xN56ZHwvBr4Xn8KYhis4UPA7B59":
-                        {
-                            "map_name": "TryhardMania C05",
-                            "juker_login": "amgreborn",
-                            "juker_nickname": "$f00$f3b\u05d3\u05d5\u05d6\u03c2 $ga$nmgrebor$wn L\u0192s"
-                        },
-                    "paE_uuyNdNVghxpvlVI7AqJefWh":
-                        {
-                            "map_name": "TryhardMania C03",
-                            "juker_login": "amgreborn",
-                            "juker_nickname": "$f00$f3b\u05d3\u05d5\u05d6\u03c2 $ga$nmgrebor$wn L\u0192s"
-                        },
-                    "vSDCIt3koUcs_sJG38RLxkrcWl7":
-                        {
-                            "map_name": "$o$i$a0aK$a06a$a30ck$a60iest Kack$a00$a0ay $f40#\u20132",
-                            "juker_login": "amgreborn",
-                            "juker_nickname": "$f00$f3b\u05d3\u05d5\u05d6\u03c2 $ga$nmgrebor$wn L\u0192s"
-                        }
-                },
-            "recently_played":
-                [
-                    "DdChQtqpFa402Vs1CDO4cMFfzpc",
-                    "9se0uI8xlYe2BUGEcZezz7pGJO4",
-                    "flT49y2Z9zxZ9gQBcoVDMOG2k4i",
-                    "P1xEuva9BW3bsRAhKt7qTbOBpZe",
-                    "vSDCIt3koUcs_sJG38RLxkrcWl7"
-                ],
-            "current_map": "$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y #247"
-        }
-}
-
+TEST_API_RESPONSE = {"$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 1":{"jukebox":[],"recently_played":["sbQZsoFMQ0yi7I4zrZn6wn06_d1","eDjkDjgh2dOMzmSilAH6nWzWBv","Vb1uh9lRARwGVSdbx1g6LC4UKdi","o2Vneej0ouvNTav5LJTuygXaXz1","kprNTNffW1tnZsojh69vFAqxeqg"],"current_map":"$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $0f4#223","time_played":"854"},"$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 2":{"jukebox":[],"recently_played":["oPTugNFan8Q22EFeRt710HnclZm","yJ3V2YlglO7vusSGI5nVeCP8aFf","7tjAh6BpWj6eSPZehsutTwELAfk","nEOGfQ8W1iYS6PiFVqB8Eda_4bc","7ykxjr_DvbWBtZKDlsm9wTnzji2"],"current_map":"$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $0f4#251","time_played":"702"},"$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 3":{"jukebox":[],"recently_played":["gY_wuO4bY12OuT1WqIOWTZ2P4Da","4e8NjxQQrC3Hy_7cBBOmGhbYuyi","kwuHbknIiJGl6JT0bIQOixCXzYc","ESXoxCHq2nzWaTPSrFm5xbrNzld","f86RbkuB7YLcTj0uFAPfNuECsQi"],"current_map":"$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $0f4#234","time_played":"412"}}
+# simo_900
+TEST_LOGIN_RESPONSE_SIMO = {'finishes': 75, 'mapids': ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212', '213', '214', '215', '216', '217', '218', '219', '220', '221', '222', '223', '224', '225', '226', '227', '228', '229', '230', '231', '232', '233', '234', '235', '236', '237', '238', '239', '240', '241', '242', '243', '244', '245', '246', '247', '248', '249', '250', '251', '252', '253', '254', '255', '256', '257', '258', '259', '260', '261', '262', '263', '264', '265', '266', '267', '268', '269', '270', '271', '272', '273', '274', '275']}
+# amgreborn
+TEST_LOGIN_RESPONSE_AMG = {'finishes': 20, 'mapids': ['201', '202', '204', '211', '215', '219', '223', '225', '230', '236', '243', '245', '247', '252', '259', '262', '269', '272', '274', '275']}
 
 class KackyAPIHandler:
     # dict managing servers
@@ -78,7 +28,7 @@ class KackyAPIHandler:
             with open(Path(__file__).parent / "secrets.yaml") as b:
                 self.api_pwd = yaml.load(b, yaml.FullLoader)["api_pwd"]
         except FileNotFoundError:
-            raise FileNotFoundException("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
+            raise FileNotFoundError("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
 
     def update_server_info(self):
         #if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1):
