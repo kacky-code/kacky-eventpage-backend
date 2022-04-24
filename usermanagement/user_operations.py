@@ -5,7 +5,11 @@ import sqlite3
 import hashlib
 
 
-class UserMngr:
+class UserDataMngr:
+    """
+    This class handles all data in the database, updating and reading. Login stuff is handled in
+    usermanagement.user_session_handler.User.
+    """
     def __init__(self, config):
         """
         Sets up obj, creates a database connection.
@@ -52,7 +56,24 @@ class UserMngr:
         """
         return self
 
-    def add_user(self, user, cryptpwd, cryptmail):
+    def add_user(self, user, cryptpwd, cryptmail) -> bool:
+        """
+        Add a user to the database
+
+        Parameters
+        ----------
+        user: str
+            username for the new account
+        cryptpwd: str
+            hashed password for the new account
+        cryptmail:
+            hashed mail for the new account
+
+        Returns
+        -------
+        bool
+            True if account was created, False if creation failed
+        """
         self.logger.info(f"Trying to create user {user}.")
         # Check if user already exists
         query = "SELECT username FROM kack_users WHERE username = ?;"
@@ -68,37 +89,17 @@ class UserMngr:
             self.logger.error(f"User {user} already exists! Aborting user creation!")
             return False
 
-    def login(self, user: str, cryptpwd: str):
+    def set_discord_id(self, user: str, id: str):
         """
-        Checks if the user can be logged in or not
+        Updates the users discord user handle in DB.
 
         Parameters
         ----------
-        user : str
-            username of user to log in
-        pwd : str
-            password of the user (unhashed, only exists here temporarily)
-
-        Returns
-        -------
-        bool
-            True if user can be logged in, False if something is wrong
+        user: str
+            user for whom update shall be done
+        id: str
+            updated discord handle
         """
-        query = "SELECT username, passwd FROM kack_users WHERE username = ?"
-        dbdata = self.cursor.execute(query, (user, )).fetchall()
-        if len(dbdata) == 0:
-            return False
-        elif len(dbdata) > 1:
-            self.logger.critical(f"Username {user} is multiple times in the database! How even?")
-            return False
-        else:
-            # user exists and pwd was loaded from db. check pwd.
-            if cryptpwd == dbdata[0][1]:
-                return True
-            else:
-                return False
-
-    def set_discord_id(self, user: str, id: str):
         query = "SELECT im_handle FROM kack_users WHERE username = ?;"
         cur_IM = self.cursor.execute(query, (user, )).fetchall()
         try:
@@ -114,7 +115,7 @@ class UserMngr:
         self.cursor.execute(query, (json.dumps(cur_IM_dict), user))
         self.connection.commit()
 
-    def get_discord_id(self, user: str):
+    def get_discord_id(self, user: str) -> str:
         """
         Read current Discord ID from the database
 
@@ -144,10 +145,34 @@ class UserMngr:
             return ""
 
     def set_tm_login(self, user: str, tmid: str):
+        """
+        Sets the users TM login in the DB.
+
+        Parameters
+        ----------
+        user: str
+            user for whom to set the TM login
+        tmid:
+            TM account name
+        """
         query = "UPDATE kack_users SET tm_login = ? WHERE username = ?"
         self.cursor.execute(query, (tmid, user))
         self.connection.commit()
 
-    def get_tm_login(self, user):
+    def get_tm_login(self, user) -> str:
+        """
+        Returns the TM login for a user from DB
+
+        Parameters
+        ----------
+        user: str
+            User for who the TM account shall be returned
+
+        Returns
+        str
+            TM login for specified user
+        -------
+
+        """
         query = "SELECT tm_login FROM kack_users WHERE username = ?;"
         return self.cursor.execute(query, (user, )).fetchall()[0][0]

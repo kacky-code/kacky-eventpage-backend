@@ -7,7 +7,7 @@ from discord.ext import tasks, commands
 import yaml
 
 from db_ops.alarm_checker import AlarmChecker
-from usermanagement.usermanager import UserMngr
+from usermanagement.user_operations import UserDataMngr
 
 
 class MyCog(commands.Cog):

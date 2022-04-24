@@ -37,13 +37,9 @@
         <a href="user">
             <button type="submit">Settings</button>
         </a>
-        <button type="submit" onclick="logout()">Logout</button>
-        <script defer>
-            function logout() {
-                document.cookie = "kkkeks=; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
-                window.location.href = "/";
-            }
-        </script>
+        <a href="logout">
+            <button type="submit" onclick="logout()">Logout</button>
+        </a>
         <!-- no else here, if caught by Flask and error.html -->
     {% endif %}
 </div>

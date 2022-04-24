@@ -6,17 +6,36 @@ import os
 from pathlib import Path
 
 import flask
+import flask_login
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import yaml
 
 from db_ops.alarm_checker import AlarmChecker
 from kacky_api_handler import KackyAPIHandler
-from usermanagement.usermanager import UserMngr
+from usermanagement.user_operations import UserDataMngr
+from usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
+# Create LoginManager for user stuff
+login_manager = LoginManager()
+login_manager.init_app(app)
 config = {}
 
 
 def get_pagedata(rawservernum=False):
+    """
+    Loads and prepares data shown on index page
+
+    Parameters
+    ----------
+    rawservernum:
+        Toggle on server ID format
+
+    Returns
+    -------
+    Tuple[list, list, list]
+        Information for the index page.
+    """
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api.get_mapinfo()
@@ -40,38 +59,21 @@ def get_pagedata(rawservernum=False):
     return serverinfo, curtimestr, timeleft
 
 
-def check_login(cookie: str):
+@app.route('/')
+def index():  # put application's code here
     """
-
-    Parameters
-    ----------
-    cookie : str
-        Cookie with login info, as read by Flask
+    Handler for the index page route
 
     Returns
     -------
-    Union(str, bool)
-        "bad_cookie", if cookie cannot be processed
-        True/False, depending on login info validity when cookie can be processed
+
     """
-    try:
-        cookie_usercreds = json.loads(cookie)
-    except (json.JSONDecodeError, TypeError):
-        # cookie cannot be read
-        return "bad_cookie"
-    um = UserMngr(config)
-    # True/False, if login is legit
-    return um.login(cookie_usercreds["user"], cookie_usercreds["h"])
-
-
-@app.route('/')
-def index():  # put application's code here
     global config
-    
+
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -81,52 +83,51 @@ def index():  # put application's code here
         vf.write("\n")
 
     # check if user is logged in
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
 
     # Get page data
     serverinfo, curtimestr, timeleft = get_pagedata()
 
-    if res and res != "bad_cookie":
+    if res:
         # user logged in
-        loginname = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        loginname = current_user.get_id()
         return flask.render_template('index.html',
                                      servs=serverinfo,
                                      curtime=curtimestr,
                                      timeleft=timeleft,
                                      loginname=loginname,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
     else:
         # user not logged in
-        response = flask.make_response(flask.render_template('index.html',
-                                                             servs=serverinfo,
-                                                             curtime=curtimestr,
-                                                             timeleft=timeleft
-                                                             )
-                                       )
-        if res == "bad_cookie":
-            response.set_cookie("kkkeks", '', expires=0)
-        return response
+        return flask.render_template('index.html',
+                                     servs=serverinfo,
+                                     curtime=curtimestr,
+                                     timeleft=timeleft
+                                     )
 
 
 @app.route('/', methods=['POST'])
 def on_map_play_search():
     """
     This gets called when a search is performed
-    :return:
+
+    Returns
+    -------
+
     """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
     # check if user is logged in
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
     if res and res != "bad_cookie":
         # user logged in
-        loginname = json.loads(flask.request.cookies.get("kkkeks"))["user"]
+        loginname = current_user.get_id()
     else:
         loginname = None
 
@@ -144,7 +145,7 @@ def on_map_play_search():
                                      searched=True, badinput=True,
                                      timeleft=timeleft,
                                      loginname=loginname,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
     # check if input is in current map pool
     if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
@@ -155,7 +156,7 @@ def on_map_play_search():
                                      searched=True, badinput=True,
                                      timeleft=timeleft,
                                      loginname=loginname,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
 
     api.get_mapinfo()
@@ -171,31 +172,42 @@ def on_map_play_search():
                                  timeleft=timeleft,
                                  deltas=deltas,
                                  loginname=loginname,
-                                 finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                 finlist=build_fin_json()
                                  )
 
 
 @app.route('/login', methods=['POST'])
 @app.route('/register', methods=['POST'])
 def show_login_page_on_button():
+    """
+    Handle data submitted in the login & register forms
+
+    Returns
+    -------
+    Union[str, flask.Response]
+        Either a page itself or forward to some page
+
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
-    um = UserMngr(config)
+    udm = UserDataMngr(config)
+    user = User(flask.request.form["login_usr"], config)
     if flask.request.path == "/login":
         # user wants to login
         cryptpw = hashlib.sha256(flask.request.form["login_pwd"].encode()).hexdigest()
-        res = um.login(flask.request.form["login_usr"], cryptpw)
+        res = user.login(flask.request.form["login_usr"], cryptpw)
         if res:
-            tm_login = um.get_tm_login(flask.request.form["login_usr"])
-            # response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
-            response = flask.redirect("/")
-            response.set_cookie("kkkeks", json.dumps({"user": flask.request.form["login_usr"],
-                                                      "h": cryptpw, "tm_login": tm_login}))
+            if "forward" in flask.request.args:
+                # user tried to access a page but was not logged in. Change redirect target
+                response = flask.redirect(flask.request.args["forward"])
+            else:
+                response = flask.redirect("/")
+            login_user(user)
             return response
         else:
             return "Login failed! Check username and pwd!"
@@ -206,58 +218,81 @@ def show_login_page_on_button():
                                                              "Ignore the next line.")
         cryptpw = hashlib.sha256(flask.request.form["reg_pwd"].encode()).hexdigest()
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
-        res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
+        res = udm.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
         if res:
-            from flask import url_for
-            return flask.render_template("login.html", mode="tmp")
+            flask.flash("Account created! Please log in now!")
+            return flask.redirect(flask.url_for("_login"))
         else:
             return flask.render_template("error.html", error="Registration failed! Username already exists!")
 
 
-@app.route('/login')
-@app.route('/register')
+@app.route('/login', endpoint="_login")
+@app.route('/register', endpoint="_register")
 def show_login_page():
+    """
+    Provides the login & register page
+
+    Returns
+    -------
+    Union[str, flask.Response]
+        Either some page or a redirect
+
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
-    res = check_login(flask.request.cookies.get("kkkeks"))
-    if res == "bad_cookie":
+    res = check_user_logged_in()
+    # user is not logged in
+    if not check_user_logged_in():
         if flask.request.path == "/login":
+            if "forward" in flask.request.args:
+                # user tried accessing a blocked page. let them log in and forward them
+                return flask.render_template('login.html', mode="l", forward=flask.request.args["forward"])
             # user wants to login
             return flask.render_template('login.html', mode="l")
         else:
             # user wants to register
             return flask.render_template('login.html', mode="r")
+    # user is already logged in
     elif res:
         return flask.render_template('login.html', mode="l", state=True,
-                                     loginname=json.loads(flask.request.cookies.get("kkkeks"))["user"])
+                                     loginname=current_user.get_id())
     else:
-        response = flask.make_response(flask.render_template('login.html', mode="l", state=False))
-        response.set_cookie("kkkeks", json.dumps({"user": "", "h": ""}), expires=0)
-        return response
+        # should never happen, but for good measure, log out user and show login page
+        return flask.redirect(flask.url_for("logout"))
 
 
 @app.route('/user')
+@login_required
 def show_user_page():
+    """
+    Shows the user page
+
+    Returns
+    -------
+    str
+        The user page
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
-    res = check_login(flask.request.cookies.get("kkkeks"))
-    if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
+    res = check_user_logged_in()
+    if not res:  # if bad cookie or bad login in cookie
         return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
     elif res:
-        um = UserMngr(config)
-        username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
-        discord_id = um.get_discord_id(username)
-        tm_login = um.get_tm_login(username)
+        udm = UserDataMngr(config)
+        username = current_user.get_id()
+        discord_id = udm.get_discord_id(username)
+        udm = UserDataMngr(config)
+        tm_login = udm.get_tm_login(username)
         ac = AlarmChecker(config)
         alarms = ac.get_alarms_for_user(username)
         maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
@@ -269,7 +304,7 @@ def show_user_page():
                                      tm_login=tm_login,
                                      alarm_enabled=True if discord_id != "" else False,
                                      loginname=username,
-                                     finlist=build_fin_json(flask.request.cookies.get("kkkeks"))
+                                     finlist=build_fin_json()
                                      )
     else:
         # TODO: Delete cookie here
@@ -277,24 +312,31 @@ def show_user_page():
 
 
 @app.route('/user', methods=['POST'])
+@login_required
 def show_user_page_on_button():
+    """
+    Updates the user page and stores new data in the DB
+
+    Returns
+    -------
+    Union[str, flask.Response]
+        The user page
+
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
-    res = check_login(flask.request.cookies.get("kkkeks"))
+    res = check_user_logged_in()
     maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
-    if res == "bad_cookie" or not res:  # if bad cookie or bad login in cookie
-        return flask.render_template("error.html", error="You Login-Info in cookies is bad. "
-                                                         "Please clear cookies for this page!")
-        # TODO: Delete cookie here
+    if not res:  # if not logged in
+        return flask.render_template("error.html", error="Not logged in!")
     elif res:
-        um = UserMngr(config)
-        username = json.loads(flask.request.cookies.get("kkkeks"))["user"]
-        cookieupdate = False
+        um = UserDataMngr(config)
+        username = current_user.get_id()
         if flask.request.form["user_save"] == "discord_id":
             # user clicked button to save discord ID
             um.set_discord_id(username, flask.request.form["discord_id"])
@@ -302,7 +344,6 @@ def show_user_page_on_button():
         elif flask.request.form["user_save"] == "tm_id":
             # user clicked button to save tm login
             um.set_tm_login(username, flask.request.form["tm_id"])
-            cookieupdate = True
         elif flask.request.form["user_save"] == "alarms":
             # user clicked button to save alarms
             selected_maps = flask.request.form.getlist("alarm_selector")
@@ -321,25 +362,60 @@ def show_user_page_on_button():
                                                              tm_login=tm_login,
                                                              alarm_enabled=True if discord_id != "" else False,
                                                              loginname=username,
-                                                             finlist=build_fin_json(f'{{"tm_login": "{tm_login}"}}')
+                                                             finlist=build_fin_json()
                                                              )
                                        )
-        if cookieupdate:
-            response.set_cookie("kkkeks", json.dumps({"user": username,
-                                                      "h": json.loads(flask.request.cookies.get("kkkeks"))["h"],
-                                                      "tm_login": flask.request.form["tm_id"]}))
         return response
     else:
+        # logout to be safe, idk how we got here
+        logout_user()
         return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
-        # TODO: Delete cookie here
+
+
+@app.route('/logout')
+@login_required
+def logout_and_redirect_index():
+    """
+    Logs out the user
+
+    Returns
+    -------
+    flask.Response
+        Redirect to the index page after logging out
+    """
+    logout_user()
+    return flask.redirect("/")
+
+
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    """
+    HTTP 401 page
+
+    Returns
+    -------
+    flask.Response
+        Forward to login form
+    """
+    flask.flash("You are not logged in!")
+    # return flask.render_template("login.html", mode="l")
+    return flask.redirect(flask.url_for("_login", forward=flask.request.path))
 
 
 @app.route('/stats')
 def stats():
+    """
+    Can show basic visitor stats, when enabled in config.yaml
+
+    Returns
+    -------
+    str
+        Stats page
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -352,10 +428,18 @@ def stats():
 
 @app.route('/data.json')
 def json_serverdata_provider():
+    """
+    "API" used by front end JS. Provides updated server information in JSON format.
+
+    Returns
+    -------
+    str
+        Data in JSON format as a string
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -373,19 +457,37 @@ def json_serverdata_provider():
 
 @app.route('/fin.json')
 def json_fin_provider():
+    """
+    Provides the finished maps for a given TM login in JSON format. Data is built in build_fin_json, this
+    is a wrapper to provide data in a dedicated route.
+
+    Returns
+    -------
+    str
+        list of fins in JSON string
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
-    return build_fin_json(flask.request.cookies.get("kkkeks"))
+    if not isinstance(current_user.get_id(), flask_login.AnonymousUserMixin):
+        return build_fin_json()
 
 
-def build_fin_json(cookie):
+def build_fin_json():
+    """
+    Provides the finished maps for a given TM login as Python dict.
+
+    Returns
+    -------
+        Dict[str, Union[int, List[str]]]
+    """
     try:
-        tm_login = json.loads(cookie)["tm_login"]
+        um = UserDataMngr(config)
+        tm_login = um.get_tm_login(current_user.get_id())
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
             mapids = list(map(lambda m: int(m), api.get_fin_info(tm_login)["mapids"]))
@@ -394,6 +496,39 @@ def build_fin_json(cookie):
             return {"finishes": 0, "mapids": []}
     except Exception:
         return {"finishes": 0, "mapids": []}
+
+
+@login_manager.user_loader
+def load_user(username):
+    """
+    user_loader as required for flask_login
+
+    Parameters
+    ----------
+    username: str
+        Parameter to generate the UID in the user object
+
+    Returns
+    -------
+    User
+        User object, inheriting from flask_login.UserMixin
+    """
+    return User(username, config)
+
+
+def check_user_logged_in():
+    """
+    Returns whether the user is logged in
+
+    Returns
+    -------
+    bool
+        True when user is logged in, False else
+    """
+    if isinstance(current_user, flask_login.AnonymousUserMixin):
+        # no user currently logged in
+        return False
+    return User(current_user, config).is_authenticated()
 
 
 #                    _
@@ -406,6 +541,12 @@ def build_fin_json(cookie):
 # Reading config file
 with open(Path(__file__).parent / "config.yaml", "r") as conffile:
     config = yaml.load(conffile, Loader=yaml.FullLoader)
+
+# Read flask secret (required for flask.flash and flask_login)
+with open(Path(__file__).parent / "secrets.yaml", "r") as secfile:
+    secrets = yaml.load(secfile, Loader=yaml.FullLoader)
+    app.secret_key = secrets["flask_secret"]
+    del secrets
 
 MAPIDS = (config["min_mapid"], config["max_mapid"])
 
