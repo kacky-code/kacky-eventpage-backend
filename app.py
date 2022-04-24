@@ -6,13 +6,18 @@ import os
 from pathlib import Path
 
 import flask
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import yaml
 
 from db_ops.alarm_checker import AlarmChecker
 from kacky_api_handler import KackyAPIHandler
-from usermanagement.usermanager import UserMngr
+from usermanagement.user_operations import UserMngr
+from usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
+# Create LoginManager for user stuff
+login_manager = LoginManager()
+login_manager.init_app(app)
 config = {}
 
 
@@ -186,16 +191,17 @@ def show_login_page_on_button():
     logger.info(f"Connection from {userip}")
 
     um = UserMngr(config)
+    user = User(flask.request.form["login_usr"], config)
     if flask.request.path == "/login":
         # user wants to login
         cryptpw = hashlib.sha256(flask.request.form["login_pwd"].encode()).hexdigest()
-        res = um.login(flask.request.form["login_usr"], cryptpw)
+        #res = um.login(flask.request.form["login_usr"], cryptpw)
+        res = user.login(flask.request.form["login_usr"], cryptpw)
         if res:
             tm_login = um.get_tm_login(flask.request.form["login_usr"])
             # response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
             response = flask.redirect("/")
-            response.set_cookie("kkkeks", json.dumps({"user": flask.request.form["login_usr"],
-                                                      "h": cryptpw, "tm_login": tm_login}))
+            login_user(user)
             return response
         else:
             return "Login failed! Check username and pwd!"
@@ -225,20 +231,21 @@ def show_login_page():
     logger.info(f"Connection from {userip}")
 
     res = check_login(flask.request.cookies.get("kkkeks"))
-    if res == "bad_cookie":
+    # user is not logged in
+    if not check_user_logged_in():
         if flask.request.path == "/login":
             # user wants to login
             return flask.render_template('login.html', mode="l")
         else:
             # user wants to register
             return flask.render_template('login.html', mode="r")
+    # user is already logged in
     elif res:
         return flask.render_template('login.html', mode="l", state=True,
-                                     loginname=json.loads(flask.request.cookies.get("kkkeks"))["user"])
+                                     loginname=current_user)
     else:
-        response = flask.make_response(flask.render_template('login.html', mode="l", state=False))
-        response.set_cookie("kkkeks", json.dumps({"user": "", "h": ""}), expires=0)
-        return response
+        # should never happen, but for good measure, log out user and show login page
+        return flask.render_template('login.html', mode="l", state=False)
 
 
 @app.route('/user')
@@ -396,6 +403,18 @@ def build_fin_json(cookie):
         return {"finishes": 0, "mapids": []}
 
 
+@login_manager.user_loader
+def load_user(username):
+    u = User(username, config)
+    return u.get_id()
+
+
+def check_user_logged_in():
+    u = User(current_user, config)
+    return u.is_authenticated()
+
+
+
 #                    _
 #                   (_)
 #    _ __ ___   __ _ _ _ __
@@ -446,3 +465,4 @@ if config["log_visits"]:
 logger.info("Starting application.")
 # app.run(debug=True, host=config["bind_hosts"], port=config["port"])
 app.run(host=config["bind_hosts"], port=config["port"])
+
