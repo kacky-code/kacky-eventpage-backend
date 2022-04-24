@@ -1,12 +1,19 @@
 import logging
 import pathlib
 import sqlite3
+from typing import Dict
 
 from flask_login import UserMixin
 
+import usermanagement.user_session_handler
+
 
 class User(UserMixin):
-    def __init__(self, username, config):
+    """
+    This class satisfies the user object required for using flask_login. Handling user data and reading/updating
+    the database mostly is handles in usermanagement.user_operations.UserDataMngr.
+    """
+    def __init__(self, username: str, config: Dict):
         """
         Sets up obj, creates a database connection.
         """
@@ -17,16 +24,43 @@ class User(UserMixin):
         # self.connection = sqlite3.connect("/var/www/flask/kim_kk_dev_site/stuff.db")
         self.cursor = self.connection.cursor()
 
-    def is_authenticated(self):
+    def is_authenticated(self) -> bool:
+        """
+        Returns if user is authenticated. Required by flask_login.UserMixin.
+
+        Returns
+        -------
+        bool
+        """
         return True
 
-    def is_active(self):
+    def is_active(self) -> bool:
+        """
+        Returns if User account is active. Not used in project. Required by flask_login.UserMixin.
+
+        Returns
+        -------
+        bool
+        """
         return True
 
-    def is_anonymous(self):
+    def is_anonymous(self) -> bool:
+        """
+        Returns if user is anonymous. Not used in project. Required by flask_login.UserMixin.
+
+        Returns
+        -------
+        bool
+        """
         return False
 
-    def get_id(self):
+    def get_id(self) -> usermanagement.user_session_handler.User:
+        """
+        Provides a User/UserMixin for each user. UID will be username, as in DB. Required by flask_login.UserMixin.
+        Returns
+        -------
+
+        """
         db_username_query = "SELECT username FROM kack_users WHERE username = ?"
 
         db_username_data = self.cursor.execute(db_username_query, (self.username,)).fetchall()
@@ -42,9 +76,9 @@ class User(UserMixin):
             else:
                 return None
 
-    def login(self, user: str, cryptpwd: str):
+    def login(self, user: str, cryptpwd: str) -> bool:
         """
-        Checks if the user can be logged in or not
+        Checks if the user can be logged in or not.
 
         Parameters
         ----------

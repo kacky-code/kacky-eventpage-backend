@@ -12,7 +12,7 @@ import yaml
 
 from db_ops.alarm_checker import AlarmChecker
 from kacky_api_handler import KackyAPIHandler
-from usermanagement.user_operations import UserMngr
+from usermanagement.user_operations import UserDataMngr
 from usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
@@ -23,6 +23,19 @@ config = {}
 
 
 def get_pagedata(rawservernum=False):
+    """
+    Loads and prepares data shown on index page
+
+    Parameters
+    ----------
+    rawservernum:
+        Toggle on server ID format
+
+    Returns
+    -------
+    Tuple[list, list, list]
+        Information for the index page.
+    """
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api.get_mapinfo()
@@ -48,12 +61,19 @@ def get_pagedata(rawservernum=False):
 
 @app.route('/')
 def index():  # put application's code here
+    """
+    Handler for the index page route
+
+    Returns
+    -------
+
+    """
     global config
-    
+
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -80,25 +100,26 @@ def index():  # put application's code here
                                      )
     else:
         # user not logged in
-        response = flask.make_response(flask.render_template('index.html',
-                                                             servs=serverinfo,
-                                                             curtime=curtimestr,
-                                                             timeleft=timeleft
-                                                             )
-                                       )
-        return response
+        return flask.render_template('index.html',
+                                     servs=serverinfo,
+                                     curtime=curtimestr,
+                                     timeleft=timeleft
+                                     )
 
 
 @app.route('/', methods=['POST'])
 def on_map_play_search():
     """
     This gets called when a search is performed
-    :return:
+
+    Returns
+    -------
+
     """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -158,22 +179,29 @@ def on_map_play_search():
 @app.route('/login', methods=['POST'])
 @app.route('/register', methods=['POST'])
 def show_login_page_on_button():
+    """
+    Handle data submitted in the login & register forms
+
+    Returns
+    -------
+    Union[str, flask.Response]
+        Either a page itself or forward to some page
+
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
-    um = UserMngr(config)
+    udm = UserDataMngr(config)
     user = User(flask.request.form["login_usr"], config)
     if flask.request.path == "/login":
         # user wants to login
         cryptpw = hashlib.sha256(flask.request.form["login_pwd"].encode()).hexdigest()
-        #res = um.login(flask.request.form["login_usr"], cryptpw)
         res = user.login(flask.request.form["login_usr"], cryptpw)
         if res:
-            # response = flask.make_response(flask.render_template('login.html', mode="l", state=True, loginname=flask.request.form["login_usr"]))
             if "forward" in flask.request.args:
                 # user tried to access a page but was not logged in. Change redirect target
                 response = flask.redirect(flask.request.args["forward"])
@@ -190,10 +218,9 @@ def show_login_page_on_button():
                                                              "Ignore the next line.")
         cryptpw = hashlib.sha256(flask.request.form["reg_pwd"].encode()).hexdigest()
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
-        res = um.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
+        res = udm.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
         if res:
             flask.flash("Account created! Please log in now!")
-            #return flask.render_template("login.html", mode="l")
             return flask.redirect(flask.url_for("_login"))
         else:
             return flask.render_template("error.html", error="Registration failed! Username already exists!")
@@ -202,10 +229,19 @@ def show_login_page_on_button():
 @app.route('/login', endpoint="_login")
 @app.route('/register', endpoint="_register")
 def show_login_page():
+    """
+    Provides the login & register page
+
+    Returns
+    -------
+    Union[str, flask.Response]
+        Either some page or a redirect
+
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -233,10 +269,18 @@ def show_login_page():
 @app.route('/user')
 @login_required
 def show_user_page():
+    """
+    Shows the user page
+
+    Returns
+    -------
+    str
+        The user page
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -244,11 +288,11 @@ def show_user_page():
     if not res:  # if bad cookie or bad login in cookie
         return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
     elif res:
-        um = UserMngr(config)
+        udm = UserDataMngr(config)
         username = current_user.get_id()
-        discord_id = um.get_discord_id(username)
-        um = UserMngr(config)
-        tm_login = um.get_tm_login(username)
+        discord_id = udm.get_discord_id(username)
+        udm = UserDataMngr(config)
+        tm_login = udm.get_tm_login(username)
         ac = AlarmChecker(config)
         alarms = ac.get_alarms_for_user(username)
         maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
@@ -270,10 +314,19 @@ def show_user_page():
 @app.route('/user', methods=['POST'])
 @login_required
 def show_user_page_on_button():
+    """
+    Updates the user page and stores new data in the DB
+
+    Returns
+    -------
+    Union[str, flask.Response]
+        The user page
+
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -282,7 +335,7 @@ def show_user_page_on_button():
     if not res:  # if not logged in
         return flask.render_template("error.html", error="Not logged in!")
     elif res:
-        um = UserMngr(config)
+        um = UserDataMngr(config)
         username = current_user.get_id()
         if flask.request.form["user_save"] == "discord_id":
             # user clicked button to save discord ID
@@ -322,12 +375,28 @@ def show_user_page_on_button():
 @app.route('/logout')
 @login_required
 def logout_and_redirect_index():
+    """
+    Logs out the user
+
+    Returns
+    -------
+    flask.Response
+        Redirect to the index page after logging out
+    """
     logout_user()
     return flask.redirect("/")
 
 
 @login_manager.unauthorized_handler
 def unauthorized_callback():
+    """
+    HTTP 401 page
+
+    Returns
+    -------
+    flask.Response
+        Forward to login form
+    """
     flask.flash("You are not logged in!")
     # return flask.render_template("login.html", mode="l")
     return flask.redirect(flask.url_for("_login", forward=flask.request.path))
@@ -335,10 +404,18 @@ def unauthorized_callback():
 
 @app.route('/stats')
 def stats():
+    """
+    Can show basic visitor stats, when enabled in config.yaml
+
+    Returns
+    -------
+    str
+        Stats page
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -351,10 +428,18 @@ def stats():
 
 @app.route('/data.json')
 def json_serverdata_provider():
+    """
+    "API" used by front end JS. Provides updated server information in JSON format.
+
+    Returns
+    -------
+    str
+        Data in JSON format as a string
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -372,10 +457,19 @@ def json_serverdata_provider():
 
 @app.route('/fin.json')
 def json_fin_provider():
+    """
+    Provides the finished maps for a given TM login in JSON format. Data is built in build_fin_json, this
+    is a wrapper to provide data in a dedicated route.
+
+    Returns
+    -------
+    str
+        list of fins in JSON string
+    """
     if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         userip = flask.request.environ['REMOTE_ADDR']
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR'] # if behind a proxy
+        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -385,14 +479,14 @@ def json_fin_provider():
 
 def build_fin_json():
     """
-
+    Provides the finished maps for a given TM login as Python dict.
 
     Returns
     -------
-    Dict[str, Union[int, List[str]]]
+        Dict[str, Union[int, List[str]]]
     """
     try:
-        um = UserMngr(config)
+        um = UserDataMngr(config)
         tm_login = um.get_tm_login(current_user.get_id())
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
@@ -406,16 +500,35 @@ def build_fin_json():
 
 @login_manager.user_loader
 def load_user(username):
+    """
+    user_loader as required for flask_login
+
+    Parameters
+    ----------
+    username: str
+        Parameter to generate the UID in the user object
+
+    Returns
+    -------
+    User
+        User object, inheriting from flask_login.UserMixin
+    """
     return User(username, config)
 
 
 def check_user_logged_in():
+    """
+    Returns whether the user is logged in
+
+    Returns
+    -------
+    bool
+        True when user is logged in, False else
+    """
     if isinstance(current_user, flask_login.AnonymousUserMixin):
         # no user currently logged in
         return False
-    u = User(current_user, config)
-    return u.is_authenticated()
-
+    return User(current_user, config).is_authenticated()
 
 
 #                    _
@@ -474,4 +587,3 @@ if config["log_visits"]:
 logger.info("Starting application.")
 # app.run(debug=True, host=config["bind_hosts"], port=config["port"])
 app.run(host=config["bind_hosts"], port=config["port"])
-

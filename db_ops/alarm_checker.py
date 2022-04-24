@@ -1,7 +1,7 @@
 import pathlib
 import sqlite3
 
-from usermanagement.user_operations import UserMngr
+from usermanagement.user_operations import UserDataMngr
 
 
 class AlarmChecker:
@@ -50,6 +50,6 @@ class AlarmChecker:
 
     def get_discord_ids_for_map(self, mapid):
         usernames = self.get_users_for_map(mapid)
-        um = UserMngr(self.config)
+        um = UserDataMngr(self.config)
         ids = list(map(lambda u: um.get_discord_id(u[0]), usernames))
         return ids
