@@ -478,6 +478,29 @@ def json_fin_provider():
         return build_fin_json()
 
 
+@app.route('/mapquery.json', methods=['GET'])
+def json_mapquery():
+    req_map = flask.request.args.get("mapid")
+    # check if input is integer
+    try:
+        search_map_id = int(req_map)
+    except ValueError:
+        return "error"
+    except TypeError:
+        return "error"
+    # check if input is in current map pool
+    if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
+        # not in current map pool
+        return "error"
+
+    api.get_mapinfo()
+    # input seems ok, try to find next time map is played
+    deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
+    # remove all None from servers which do not have map
+    deltas = [i for i in deltas if i[0]]
+    return json.dumps([search_map_id, deltas])
+
+
 def build_fin_json():
     """
     Provides the finished maps for a given TM login as Python dict.
