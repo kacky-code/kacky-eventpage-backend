@@ -196,8 +196,9 @@ def show_login_page_on_button():
     logger.info(f"Connection from {userip}")
 
     udm = UserDataMngr(config)
-    user = User(flask.request.form["login_usr"], config)
+
     if flask.request.path == "/login":
+        user = User(flask.request.form["login_usr"], config)
         # user wants to login
         cryptpw = hashlib.sha256(flask.request.form["login_pwd"].encode()).hexdigest()
         res = user.login(flask.request.form["login_usr"], cryptpw)

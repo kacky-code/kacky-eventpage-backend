@@ -54,7 +54,7 @@ class User(UserMixin):
         """
         return False
 
-    def get_id(self) -> usermanagement.user_session_handler.User:
+    def get_id(self):# -> usermanagement.user_session_handler.User:
         """
         Provides a User/UserMixin for each user. UID will be username, as in DB. Required by flask_login.UserMixin.
         Returns
