@@ -498,7 +498,9 @@ def json_mapquery():
     deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
     # remove all None from servers which do not have map
     deltas = [i for i in deltas if i[0]]
-    return json.dumps([search_map_id, deltas])
+    # return json.dumps([search_map_id, deltas]) # return [mapid, timedelta]
+    # return time delta to queried map
+    return [deltas]
 
 
 def build_fin_json():
