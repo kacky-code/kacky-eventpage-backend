@@ -38,17 +38,19 @@ class KackyAPIHandler:
 
         self.logger.info("Updating self.servers.")
         try:
-            krdata = requests.get("https://kk.kackiestkacky.com/api/", params={"password": self.api_pwd}).json()
+            if self.config["testing_mode"]:
+                self.logger.error("Using TEST_API_RESPONSE")
+                krdata = TEST_API_RESPONSE
+            else:
+                krdata = requests.get("https://kk.kackiestkacky.com/api/", params={"password": self.api_pwd}).json()
         except ConnectionError:
             self.logger.error("Could not connect to KK API!")
             flask.render_template('error.html',
                                   error="Could not contact KK server. RIP!")
             return
         except json.decoder.JSONDecodeError:
-            # self.logger.error("Using TEST_API_RESPONSE")
             # flask.render_template('error.html',
             #                      error="KK API returned strange data. RIP!")
-            # krdata = TEST_API_RESPONSE
             self.logger.error("Could not connect to KK API!")
             flask.render_template('error.html',
                                   error="Could not contact KK server. RIP!")
