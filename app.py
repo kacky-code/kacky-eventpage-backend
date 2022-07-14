@@ -490,13 +490,13 @@ def json_mapquery():
     try:
         search_map_id = int(req_map)
     except ValueError:
-        return "error"
+        return "- never, check your inputs!"
     except TypeError:
-        return "error"
+        return "- never, check your inputs!"
     # check if input is in current map pool
     if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
         # not in current map pool
-        return "error"
+        return "- never, check your inputs!"
 
     api.get_mapinfo()
     # input seems ok, try to find next time map is played
