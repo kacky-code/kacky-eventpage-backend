@@ -35,5 +35,5 @@ loglevel: DEBUG # DEBUG, INFO, WARNING, ERROR, CRITICAL
 logger_name: KKmaptimes
 
 # TESTING MODE
-testing_mode: 1
+testing_mode: 0
 testing_compend: 30.01.2050 22:00
