@@ -52,3 +52,10 @@ MANIFEST
 .venv*/
 .conda*/
 .python-version
+
+visits.log
+.idea
+*__pycache__/
+stuff.db
+src/kk_schedule/static/mapthumbs
+secrets.yaml
