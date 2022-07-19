@@ -40,8 +40,13 @@ def get_pagedata(rawservernum=False):
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api.get_mapinfo()
     curmaps = list(map(lambda s: s.cur_map, api.servers.values()))
-    ttl = datetime.datetime.strptime(config["compend"],
-                                     "%d.%m.%Y %H:%M") - curtime
+    # check if testing mode is deployed
+    if config["testing_mode"]:
+        ttl = datetime.datetime.strptime(config["testing_compend"],
+                                         "%d.%m.%Y %H:%M") - curtime
+    else:
+        ttl = datetime.datetime.strptime(config["compend"],
+                                         "%d.%m.%Y %H:%M") - curtime
     if ttl.days < 0 or ttl.seconds < 0:
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), -1)
@@ -476,6 +481,44 @@ def json_fin_provider():
 
     if not isinstance(current_user.get_id(), flask_login.AnonymousUserMixin):
         return build_fin_json()
+
+
+@app.route('/mapquery.json', methods=['GET'])
+def json_mapquery():
+    req_map = flask.request.args.get("mapid")
+    # check if input is integer
+    try:
+        search_map_id = int(req_map)
+    except ValueError:
+        return "- never, check your inputs!"
+    except TypeError:
+        return "- never, check your inputs!"
+    # check if input is in current map pool
+    if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
+        # not in current map pool
+        return "- never, check your inputs!"
+
+    api.get_mapinfo()
+    # input seems ok, try to find next time map is played
+    deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
+    # remove all None from servers which do not have map
+    deltas = [i for i in deltas if i[0]]
+    # get only result with lowest time. Also, do this stupidly. No need for sorting shenanigans, we will usually have
+    # less than 20 elements.
+    lowest_delta = (("9999", "00"), "someservernumber")
+    for d in deltas:
+        # d is Tuple[Tuple[str, str], str]
+        # compare hours
+        if int(d[0][0]) < int(lowest_delta[0][0]):
+            lowest_delta = d
+        elif int(d[0][0]) == int(lowest_delta[0][0]):
+            # hours are equal, compare minutes
+            if int(d[0][1]) < int(lowest_delta[0][1]):
+                lowest_delta = d
+
+    # return json.dumps([search_map_id, deltas]) # return [mapid, timedelta]
+    # return time delta to queried map until next play. Omit server name.
+    return lowest_delta[0][0] + ":" + lowest_delta[0][1]
 
 
 def build_fin_json():
