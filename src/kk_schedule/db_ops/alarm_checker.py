@@ -1,7 +1,7 @@
 import pathlib
 import sqlite3
 
-from usermanagement.user_operations import UserDataMngr
+from kk_schedule.usermanagement.user_operations import UserDataMngr
 
 
 class AlarmChecker:

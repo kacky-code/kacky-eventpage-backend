@@ -10,10 +10,10 @@ import flask_login
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import yaml
 
-from db_ops.alarm_checker import AlarmChecker
-from kacky_api_handler import KackyAPIHandler
-from usermanagement.user_operations import UserDataMngr
-from usermanagement.user_session_handler import User
+from kk_schedule.db_ops.alarm_checker import AlarmChecker
+from kk_schedule.kacky_api_handler import KackyAPIHandler
+from kk_schedule.usermanagement.user_operations import UserDataMngr
+from kk_schedule.usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
 # Create LoginManager for user stuff
@@ -40,8 +40,12 @@ def get_pagedata(rawservernum=False):
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api.get_mapinfo()
     curmaps = list(map(lambda s: s.cur_map, api.servers.values()))
-    ttl = datetime.datetime.strptime(config["compend"],
-                                     "%d.%m.%Y %H:%M") - curtime
+    if config["testing_mode"]:
+        ttl = datetime.datetime.strptime(config["testing_compend"],
+                                         "%d.%m.%Y %H:%M") - curtime
+    else:
+        ttl = datetime.datetime.strptime(config["compend"],
+                                         "%d.%m.%Y %H:%M") - curtime
     if ttl.days < 0 or ttl.seconds < 0:
         timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
                     abs(int(ttl.seconds // 60) % 60), -1)
@@ -540,11 +544,11 @@ def check_user_logged_in():
 #   |_| |_| |_|\__,_|_|_| |_|
 #
 # Reading config file
-with open(Path(__file__).parent / "config.yaml", "r") as conffile:
+with open(Path(__file__).parents[2] / "config.yaml", "r") as conffile:
     config = yaml.load(conffile, Loader=yaml.FullLoader)
 
 # Read flask secret (required for flask.flash and flask_login)
-with open(Path(__file__).parent / "secrets.yaml", "r") as secfile:
+with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
     secrets = yaml.load(secfile, Loader=yaml.FullLoader)
     app.secret_key = secrets["flask_secret"]
     del secrets
