@@ -38,7 +38,7 @@ if __name__ == "__main__":
         with open(Path(__file__).parent / "secrets.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
     except FileNotFoundError:
-        raise FileNotFoundException("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
+        raise FileNotFoundError("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
     TOKEN = conf["token"]
     GUILD_ID = conf["guild"]
     if TOKEN == "" or GUILD_ID == "":
