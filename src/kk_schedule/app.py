@@ -82,7 +82,7 @@ def index():  # put application's code here
     logger.info(f"Connection from {userip}")
 
     # Log visit (only for counting, no further info). Quite GDPR conform, right?
-    with open(Path(__file__).parent / config["visits_logfile"], "a") as vf:
+    with open(Path(__file__).parent[2] / config["visits_logfile"], "a") as vf:
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
         vf.write("\n")
 

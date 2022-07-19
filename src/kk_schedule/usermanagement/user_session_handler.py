@@ -20,8 +20,7 @@ class User(UserMixin):
         self.username = username
         self.logger = logging.getLogger(config["logger_name"])
         # set up database connection to manage projects
-        self.connection = sqlite3.connect(pathlib.Path(__file__).parents[1] / "stuff.db")
-        # self.connection = sqlite3.connect("/var/www/flask/kim_kk_dev_site/stuff.db")
+        self.connection = sqlite3.connect(pathlib.Path(__file__).parents[3] / "stuff.db")
         self.cursor = self.connection.cursor()
 
     def is_authenticated(self) -> bool:
