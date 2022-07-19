@@ -6,8 +6,8 @@ import requests
 from discord.ext import tasks, commands
 import yaml
 
-from db_ops.alarm_checker import AlarmChecker
-from usermanagement.user_operations import UserDataMngr
+from kk_schedule.db_ops.alarm_checker import AlarmChecker
+from kk_schedule.usermanagement.user_operations import UserDataMngr
 
 
 class MyCog(commands.Cog):
@@ -19,7 +19,7 @@ class MyCog(commands.Cog):
         self.loggername = "kk_discord_bot"
         self.logger = logging.getLogger(self.loggername)
 
-        with open(Path(__file__).parents[1] / "secrets.yaml") as b:
+        with open(Path(__file__).parents[3] / "secrets.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
         self.guild_id = conf["guild"]
         if self.guild_id == "":
