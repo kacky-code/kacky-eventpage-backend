@@ -16,25 +16,30 @@ TEST_LOGIN_RESPONSE_SIMO = {'finishes': 75, 'mapids': ['201', '202', '203', '204
 # amgreborn
 TEST_LOGIN_RESPONSE_AMG = {'finishes': 20, 'mapids': ['201', '202', '204', '211', '215', '219', '223', '225', '230', '236', '243', '245', '247', '252', '259', '262', '269', '272', '274', '275']}
 
+TEST_LEADERBOARD_RESPONSE = [[1, "sexyboii", "plastorex", 3.7], [2, "$abcsimo_$777900", "simo_900", 4.2], [7, "k$cba*$z$gm", "amgreborn", 69.69], [17, "corkscrew", "corkscrew", 134.0]]
+
+
 class KackyAPIHandler:
     # dict managing servers
     servers = {}
+    leaderboard = []
 
     def __init__(self, config: dict):
         self.config = config
         self.logger = logging.getLogger(self.config["logger_name"])
-        self.last_update = datetime.datetime.fromtimestamp(0)
+        self.last_server_update = datetime.datetime.fromtimestamp(0)
+        self.last_leader_update = datetime.datetime.fromtimestamp(0)
         try:
             with open(Path(__file__).parent / "secrets.yaml") as b:
                 self.api_pwd = yaml.load(b, yaml.FullLoader)["api_pwd"]
         except FileNotFoundError:
-            raise FileNotFoundError("Bot needs a bot.py with 'token' and 'guild' keys, containing the token for the bot and the ID of the guild to connect to!")
+            raise FileNotFoundError("Missing secrets.yaml!")
 
     def update_server_info(self):
-        #if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1):
-        #    # if last update is not older than one minute, use cached data
-        #    self.logger.info("Use cached self.servers.")
-        #    return
+        if not self.last_update < datetime.datetime.now() - datetime.timedelta(minutes=1) and not self.config["testing_mode"]:
+            # if last update is not older than one minute, use cached data
+            self.logger.info("Use cached self.servers.")
+            return
 
         self.logger.info("Updating self.servers.")
         try:
@@ -66,7 +71,7 @@ class KackyAPIHandler:
             # update existing ServerInfo object
             self.servers[server].update_info(d)
 
-        self.last_update = datetime.datetime.now()
+        self.last_server_update = datetime.datetime.now()
 
     def get_fin_info(self, tmlogin):
         try:
@@ -80,3 +85,36 @@ class KackyAPIHandler:
     def get_mapinfo(self):
         if any(map(lambda s: s.timeplayed < 0, self.servers.values())) or self.servers == {}:
             self.update_server_info()
+
+    def update_leaderboard(self):
+        if not self.last_leader_update < datetime.datetime.now() - datetime.timedelta(minutes=10) and not self.leaderboard == []:
+            # if last update is not older than one minute, use cached data
+            self.logger.info("Use cached self.leaderboard.")
+            return
+
+        self.logger.info("Updating self.leaderboard.")
+        try:
+            # TODO: change to actual api
+            # krdata = requests.get("https://kk.kackiestkacky.com/api/", params={"password": self.api_pwd}).json()
+            krdata = TEST_LEADERBOARD_RESPONSE
+        except ConnectionError:
+            self.logger.error("Could not connect to KK API!")
+            flask.render_template('error.html',
+                                  error="Could not contact KK server. RIP!")
+            return
+        except json.decoder.JSONDecodeError:
+            #self.logger.error("Using TEST_API_RESPONSE")
+            #krdata = TEST_LEADERBOARD_RESPONSE
+            self.logger.error("Could not connect to KK API!")
+            flask.render_template('error.html',
+                                  error="Could not contact KK server. RIP!")
+            return
+
+        for idx, _ in enumerate(krdata):
+            krdata[idx][1] = TMstr(krdata[idx][1]).html
+
+        self.leaderboard = krdata
+        self.last_leader_update = datetime.datetime.now()
+
+    def get_leaderboard(self):
+        self.update_leaderboard()
