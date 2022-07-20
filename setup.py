@@ -1,5 +1,5 @@
 """
-    Setup file for kk_schedule.
+    Setup file for kacky_schedule.
     Use setup.cfg to configure your project.
 
     This file was generated with PyScaffold 4.2.3.

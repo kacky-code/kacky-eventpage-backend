@@ -10,10 +10,10 @@ import flask_login
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import yaml
 
-from kk_schedule.db_ops.alarm_checker import AlarmChecker
-from kk_schedule.kacky_api_handler import KackyAPIHandler
-from kk_schedule.usermanagement.user_operations import UserDataMngr
-from kk_schedule.usermanagement.user_session_handler import User
+from kacky_schedule.db_ops.alarm_checker import AlarmChecker
+from kacky_schedule.kacky_api_handler import KackyAPIHandler
+from kacky_schedule.usermanagement.user_operations import UserDataMngr
+from kacky_schedule.usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
 # Create LoginManager for user stuff
@@ -82,7 +82,7 @@ def index():  # put application's code here
     logger.info(f"Connection from {userip}")
 
     # Log visit (only for counting, no further info). Quite GDPR conform, right?
-    with open(Path(__file__).parent[2] / config["visits_logfile"], "a") as vf:
+    with open(Path(__file__).parents[2] / config["visits_logfile"], "a") as vf:
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
         vf.write("\n")
 

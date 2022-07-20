@@ -5,7 +5,7 @@ from typing import Dict
 
 from flask_login import UserMixin
 
-import kk_schedule.usermanagement.user_session_handler
+import kacky_schedule.usermanagement.user_session_handler
 
 
 class User(UserMixin):

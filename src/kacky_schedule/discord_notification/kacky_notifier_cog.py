@@ -6,8 +6,8 @@ import requests
 from discord.ext import tasks, commands
 import yaml
 
-from kk_schedule.db_ops.alarm_checker import AlarmChecker
-from kk_schedule.usermanagement.user_operations import UserDataMngr
+from kacky_schedule.db_ops.alarm_checker import AlarmChecker
+from kacky_schedule.usermanagement.user_operations import UserDataMngr
 
 
 class MyCog(commands.Cog):
