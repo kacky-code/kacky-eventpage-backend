@@ -32,9 +32,9 @@ async def on_ready():
     #print(f'Guild Members:\n - {members}')
     #await guild.members[1].send("hey u")
 
-
-if __name__ == "__main__":
+def main():
     try:
+        print(Path(__file__))
         with open(Path(__file__).parents[2] / "secrets.yaml") as b:
             conf = yaml.load(b, yaml.FullLoader)
     except FileNotFoundError:
@@ -43,5 +43,8 @@ if __name__ == "__main__":
     GUILD_ID = conf["guild"]
     if TOKEN == "" or GUILD_ID == "":
         raise RuntimeError("Bad values in secrets.yaml!")
-    bot.load_extension("discord_notification.kacky_notifier_cog")
+    bot.load_extension("kk_schedule.discord_notification.kacky_notifier_cog")
     bot.run(TOKEN)
+
+if __name__ == "__main__":
+    main()
