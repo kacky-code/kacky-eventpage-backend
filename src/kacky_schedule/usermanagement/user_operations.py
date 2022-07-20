@@ -1,15 +1,16 @@
+import hashlib
 import json
 import logging
 import pathlib
 import sqlite3
-import hashlib
 
 
 class UserDataMngr:
     """
-    This class handles all data in the database, updating and reading. Login stuff is handled in
-    usermanagement.user_session_handler.User.
+    This class handles all data in the database, updating and reading. Login stuff is
+    handled in usermanagement.user_session_handler.User.
     """
+
     def __init__(self, config):
         """
         Sets up obj, creates a database connection.
@@ -18,21 +19,27 @@ class UserDataMngr:
         self.logger = logging.getLogger(self.config["logger_name"])
 
         # set up database connection to manage projects
-        self.connection = sqlite3.connect(pathlib.Path(__file__).parents[3] / "stuff.db")
+        self.connection = sqlite3.connect(
+            pathlib.Path(__file__).parents[3] / "stuff.db"
+        )
         self.cursor = self.connection.cursor()
         # Create table if not exists
-        self.cursor.execute("""CREATE TABLE IF NOT EXISTS `kack_users` (
+        self.cursor.execute(
+            """CREATE TABLE IF NOT EXISTS `kack_users` (
                             `id` INTEGER PRIMARY KEY,
                             `username` TEXT NOT NULL,
                             `passwd` TEXT NOT NULL,
                             `mail` TEXT NOT NULL,
                             `im_handle` TEXT,
                             `tm_login` TEXT
-                            );""")
-        self.cursor.execute("""CREATE TABLE IF NOT EXISTS `alarms` (
+                            );"""
+        )
+        self.cursor.execute(
+            """CREATE TABLE IF NOT EXISTS `alarms` (
                             `username` TEXT PRIMARY KEY,
                             `setalarms` TEXT
-                            );""")
+                            );"""
+        )
         self.connection.commit()
 
         self.hashgen = hashlib.sha256
@@ -76,12 +83,15 @@ class UserDataMngr:
         self.logger.info(f"Trying to create user {user}.")
         # Check if user already exists
         query = "SELECT username FROM kack_users WHERE username = ?;"
-        if not self.cursor.execute(query, (user, )).fetchall():
+        if not self.cursor.execute(query, (user,)).fetchall():
             self.logger.info(f"User {user} does not yet exist. Creating.")
-            query = "INSERT INTO kack_users(username, passwd, mail, tm_login) VALUES (?, ?, ?, '');"
+            query = (
+                "INSERT INTO kack_users(username, passwd, mail, tm_login) "
+                "VALUES (?, ?, ?, '');"
+            )
             self.cursor.execute(query, (user, cryptpwd, cryptmail))
             query = "INSERT INTO alarms(username, setalarms) VALUES (?, '');"
-            self.cursor.execute(query, (user, ))
+            self.cursor.execute(query, (user,))
             self.connection.commit()
             return True
         else:
@@ -100,7 +110,7 @@ class UserDataMngr:
             updated discord handle
         """
         query = "SELECT im_handle FROM kack_users WHERE username = ?;"
-        cur_IM = self.cursor.execute(query, (user, )).fetchall()
+        cur_IM = self.cursor.execute(query, (user,)).fetchall()
         try:
             cur_IM_dict = json.loads(cur_IM)
         except (json.decoder.JSONDecodeError, TypeError):
@@ -129,7 +139,7 @@ class UserDataMngr:
             Discord ID or "", if there is none stored
         """
         query = "SELECT im_handle FROM kack_users WHERE username = ?;"
-        cur_IM = self.cursor.execute(query, (user, )).fetchall()
+        cur_IM = self.cursor.execute(query, (user,)).fetchall()
         if not cur_IM:
             return ""
         else:
@@ -174,4 +184,4 @@ class UserDataMngr:
 
         """
         query = "SELECT tm_login FROM kack_users WHERE username = ?;"
-        return self.cursor.execute(query, (user, )).fetchall()[0][0]
+        return self.cursor.execute(query, (user,)).fetchall()[0][0]

@@ -7,7 +7,9 @@ from kacky_schedule.usermanagement.user_operations import UserDataMngr
 class AlarmChecker:
     def __init__(self, config):
         # set up database connection to manage projects
-        self.connection = sqlite3.connect(pathlib.Path(__file__).parents[3] / "stuff.db")
+        self.connection = sqlite3.connect(
+            pathlib.Path(__file__).parents[3] / "stuff.db"
+        )
         self.cursor = self.connection.cursor()
         self.config = config
 
@@ -39,7 +41,7 @@ class AlarmChecker:
 
     def set_alarms_for_user(self, user, alarmlist):
         query = "UPDATE alarms SET setalarms = ? WHERE username = ?"
-        self.cursor.execute(query, (' '.join(alarmlist), user))
+        self.cursor.execute(query, (" ".join(alarmlist), user))
         self.connection.commit()
 
     def get_users_for_map(self, mapid):

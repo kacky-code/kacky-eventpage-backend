@@ -3,18 +3,17 @@ from pathlib import Path
 
 import discord
 import requests
-from discord.ext import tasks, commands
 import yaml
+from discord.ext import commands, tasks
 
 from kacky_schedule.db_ops.alarm_checker import AlarmChecker
-from kacky_schedule.usermanagement.user_operations import UserDataMngr
 
 
 class MyCog(commands.Cog):
     def __init__(self, bot):
         self.index = 0
         self.bot = bot
-        self.adminlist = ["328138969243975680"] # corkscrew's discord id
+        self.adminlist = ["328138969243975680"]  # corkscrew's discord id
         self.printer.start()
         self.loggername = "kk_discord_bot"
         self.logger = logging.getLogger(self.loggername)
@@ -41,7 +40,10 @@ class MyCog(commands.Cog):
             for userid in self.adminlist:
                 try:
                     user = await self.bot.fetch_user(userid)
-                    await user.send(f"Hey! kacky.dingens.me seems to have a problem! This also kills me, the bot :(")
+                    await user.send(
+                        "Hey! kacky.dingens.me seems to have a problem! "
+                        + "This also kills me, the bot :("
+                    )
                 except discord.errors.HTTPException:
                     self.logger.error(f"Admin ID {userid} is a bad Discord ID!")
             return
@@ -60,7 +62,7 @@ class MyCog(commands.Cog):
             serv_timelimit = server[serv_name][3]
             timeleft = serv_timelimit * 60 - server[serv_name][1]
             if serv_timelimit > 10:
-                alarm_mark = 60 * 10 # 10 min in s
+                alarm_mark = 60 * 10  # 10 min in s
             else:
                 alarm_mark = (serv_timelimit - 1) * 60  # timelimit - 1min in s
             if alarm_mark + 30 > timeleft > alarm_mark - 29:
@@ -73,14 +75,23 @@ class MyCog(commands.Cog):
                     self.logger.error(f"processing {userid}")
                     try:
                         # user = await self.bot.fetch_user(userid)
-                        user = discord.utils.get(guild.members, name=userid.split("#")[0], discriminator=userid.split("#")[1])
+                        user = discord.utils.get(
+                            guild.members,
+                            name=userid.split("#")[0],
+                            discriminator=userid.split("#")[1],
+                        )
                         self.logger.error(f"user: {user}    {user.id}")
                         if user is None:
                             # bad user credentials
                             self.logger.error(f"ID {userid} is a bad Discord ID!")
                             continue
-                        await user.send(f"Hey, map **{next_map}** is coming up on **{serv_name}**! Roughly 10 min until it's played, glhf!")
-                        # await user.send(f"For {serv_name}, the time limit is {serv_timelimit}. alarm at {alarm_mark}, time is at {server[serv_name][1]}")
+                        await user.send(
+                            f"Hey, map **{next_map}** is coming up on **{serv_name}**! "
+                            f"Roughly 10 min until it's played, glhf!"
+                        )
+                        # await user.send(f"For {serv_name}, the time limit is
+                        # {serv_timelimit}. alarm at {alarm_mark}, time is at
+                        # {server[serv_name][1]}")
                     except discord.errors.HTTPException:
                         self.logger.error(f"ID {userid} is a bad Discord ID!")
                     except IndexError:
@@ -88,12 +99,14 @@ class MyCog(commands.Cog):
                     except AttributeError:
                         self.logger.error(f"ID {userid} is a bad Discord ID!")
                     except Exception as e:
-                        self.logger.error(f"Some error happened: {e}.\nLet's continue and hope this thing still works")
-
+                        self.logger.error(
+                            f"Some error happened: {e}.\nLet's continue and hope "
+                            f"this thing still works"
+                        )
 
     @printer.before_loop
     async def before_printer(self):
-        print('waiting...')
+        print("waiting...")
         await self.bot.wait_until_ready()
 
 

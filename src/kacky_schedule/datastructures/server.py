@@ -42,7 +42,11 @@ class ServerInfo:
 
     @property
     def timeplayed(self):
-        if (datetime.datetime.now() - self.last_update).total_seconds() + self.timeplayed_internal > self.timelimit * 60:
+        if (
+            datetime.datetime.now() - self.last_update
+        ).total_seconds() + self.timeplayed_internal > self.timelimit * 60:
             return -1
         else:
-            return (datetime.datetime.now() - self.last_update).total_seconds() + self.timeplayed_internal
+            return (
+                datetime.datetime.now() - self.last_update
+            ).total_seconds() + self.timeplayed_internal
