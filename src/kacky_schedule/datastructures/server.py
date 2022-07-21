@@ -3,8 +3,8 @@ from pathlib import Path
 
 import yaml
 
-from datastructures.playlist import PlaylistHandler
-from tm_format_resolver import TMstr
+from kacky_schedule.datastructures.playlist import PlaylistHandler
+from kacky_schedule.tm_format_resolver import TMstr
 
 
 class ServerInfo:
@@ -15,7 +15,7 @@ class ServerInfo:
         self.id = self.name.string.split(" ")[-1]
 
         if self.config["playlist"] == "custom":
-            with open(Path(__file__).parents[1] / "servers.yaml") as mf:
+            with open(Path(__file__).parents[3] / "servers.yaml") as mf:
                 server_conf = yaml.load(mf, Loader=yaml.FullLoader)
             self.playlist = PlaylistHandler(config, server_conf[name.string]["maps"])
         else:
@@ -42,7 +42,11 @@ class ServerInfo:
 
     @property
     def timeplayed(self):
-        if (datetime.datetime.now() - self.last_update).total_seconds() + self.timeplayed_internal > self.timelimit * 60:
+        if (
+            datetime.datetime.now() - self.last_update
+        ).total_seconds() + self.timeplayed_internal > self.timelimit * 60:
             return -1
         else:
-            return (datetime.datetime.now() - self.last_update).total_seconds() + self.timeplayed_internal
+            return (
+                datetime.datetime.now() - self.last_update
+            ).total_seconds() + self.timeplayed_internal

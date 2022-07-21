@@ -7,13 +7,19 @@ from pathlib import Path
 
 import flask
 import flask_login
-from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import yaml
+from flask_login import (
+    LoginManager,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 
-from db_ops.alarm_checker import AlarmChecker
-from kacky_api_handler import KackyAPIHandler
-from usermanagement.user_operations import UserDataMngr
-from usermanagement.user_session_handler import User
+from kacky_schedule.db_ops.alarm_checker import AlarmChecker
+from kacky_schedule.kacky_api_handler import KackyAPIHandler
+from kacky_schedule.usermanagement.user_operations import UserDataMngr
+from kacky_schedule.usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
 # Create LoginManager for user stuff
@@ -40,31 +46,43 @@ def get_pagedata(rawservernum=False):
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
     api.get_mapinfo()
     curmaps = list(map(lambda s: s.cur_map, api.servers.values()))
-    # check if testing mode is deployed
     if config["testing_mode"]:
-        ttl = datetime.datetime.strptime(config["testing_compend"],
-                                         "%d.%m.%Y %H:%M") - curtime
+        ttl = (
+            datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
+            - curtime
+        )
     else:
-        ttl = datetime.datetime.strptime(config["compend"],
-                                         "%d.%m.%Y %H:%M") - curtime
+        ttl = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M") - curtime
     if ttl.days < 0 or ttl.seconds < 0:
-        timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
-                    abs(int(ttl.seconds // 60) % 60), -1)
+        timeleft = (
+            abs(ttl.days),
+            abs(int(ttl.seconds // 3600)),
+            abs(int(ttl.seconds // 60) % 60),
+            -1,
+        )
     else:
-        timeleft = (abs(ttl.days), abs(int(ttl.seconds // 3600)),
-                    abs(int(ttl.seconds // 60) % 60), 1)
+        timeleft = (
+            abs(ttl.days),
+            abs(int(ttl.seconds // 3600)),
+            abs(int(ttl.seconds // 60) % 60),
+            1,
+        )
     if rawservernum:
-        servernames = list(map(lambda s: s.name.string.split(" - ")[1], api.servers.values()))
+        servernames = list(
+            map(lambda s: s.name.string.split(" - ")[1], api.servers.values())
+        )
     else:
         servernames = list(map(lambda s: s.name.html, api.servers.values()))
     timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
-    jukebox = list(map(lambda s: s.playlist.get_playlist_from_now(), api.servers.values()))
+    jukebox = list(
+        map(lambda s: s.playlist.get_playlist_from_now(), api.servers.values())
+    )
     timelimits = list(map(lambda s: s.timelimit, api.servers.values()))
     serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
     return serverinfo, curtimestr, timeleft
 
 
-@app.route('/')
+@app.route("/")
 def index():  # put application's code here
     """
     Handler for the index page route
@@ -75,15 +93,15 @@ def index():  # put application's code here
     """
     global config
 
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
     # Log visit (only for counting, no further info). Quite GDPR conform, right?
-    with open(Path(__file__).parent / config["visits_logfile"], "a") as vf:
+    with open(Path(__file__).parents[2] / config["visits_logfile"], "a") as vf:
         vf.write(datetime.datetime.now().strftime("%d/%m/%y %H:%M"))
         vf.write("\n")
 
@@ -96,23 +114,22 @@ def index():  # put application's code here
     if res:
         # user logged in
         loginname = current_user.get_id()
-        return flask.render_template('index.html',
-                                     servs=serverinfo,
-                                     curtime=curtimestr,
-                                     timeleft=timeleft,
-                                     loginname=loginname,
-                                     finlist=build_fin_json()
-                                     )
+        return flask.render_template(
+            "index.html",
+            servs=serverinfo,
+            curtime=curtimestr,
+            timeleft=timeleft,
+            loginname=loginname,
+            finlist=build_fin_json(),
+        )
     else:
         # user not logged in
-        return flask.render_template('index.html',
-                                     servs=serverinfo,
-                                     curtime=curtimestr,
-                                     timeleft=timeleft
-                                     )
+        return flask.render_template(
+            "index.html", servs=serverinfo, curtime=curtimestr, timeleft=timeleft
+        )
 
 
-@app.route('/', methods=['POST'])
+@app.route("/", methods=["POST"])
 def on_map_play_search():
     """
     This gets called when a search is performed
@@ -121,10 +138,10 @@ def on_map_play_search():
     -------
 
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -138,31 +155,35 @@ def on_map_play_search():
 
     # Get page data
     serverinfo, curtimestr, timeleft = get_pagedata()
-    search_map_id = flask.request.form['map']
+    search_map_id = flask.request.form["map"]
     # check if input is integer
     try:
         search_map_id = int(search_map_id)
     except ValueError:
         # input is not a integer, return error message
-        return flask.render_template('index.html',
-                                     servs=serverinfo,
-                                     curtime=curtimestr,
-                                     searched=True, badinput=True,
-                                     timeleft=timeleft,
-                                     loginname=loginname,
-                                     finlist=build_fin_json()
-                                     )
+        return flask.render_template(
+            "index.html",
+            servs=serverinfo,
+            curtime=curtimestr,
+            searched=True,
+            badinput=True,
+            timeleft=timeleft,
+            loginname=loginname,
+            finlist=build_fin_json(),
+        )
     # check if input is in current map pool
     if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
         # not in current map pool
-        return flask.render_template('index.html',
-                                     servs=serverinfo,
-                                     curtime=curtimestr,
-                                     searched=True, badinput=True,
-                                     timeleft=timeleft,
-                                     loginname=loginname,
-                                     finlist=build_fin_json()
-                                     )
+        return flask.render_template(
+            "index.html",
+            servs=serverinfo,
+            curtime=curtimestr,
+            searched=True,
+            badinput=True,
+            timeleft=timeleft,
+            loginname=loginname,
+            finlist=build_fin_json(),
+        )
 
     api.get_mapinfo()
     # input seems ok, try to find next time map is played
@@ -170,19 +191,21 @@ def on_map_play_search():
     # remove all None from servers which do not have map
     deltas = [i for i in deltas if i[0]]
 
-    return flask.render_template('index.html',
-                                 servs=serverinfo,
-                                 curtime=curtimestr,
-                                 searched=True, searchtext=search_map_id,
-                                 timeleft=timeleft,
-                                 deltas=deltas,
-                                 loginname=loginname,
-                                 finlist=build_fin_json()
-                                 )
+    return flask.render_template(
+        "index.html",
+        servs=serverinfo,
+        curtime=curtimestr,
+        searched=True,
+        searchtext=search_map_id,
+        timeleft=timeleft,
+        deltas=deltas,
+        loginname=loginname,
+        finlist=build_fin_json(),
+    )
 
 
-@app.route('/login', methods=['POST'])
-@app.route('/register', methods=['POST'])
+@app.route("/login", methods=["POST"])
+@app.route("/register", methods=["POST"])
 def show_login_page_on_button():
     """
     Handle data submitted in the login & register forms
@@ -193,10 +216,10 @@ def show_login_page_on_button():
         Either a page itself or forward to some page
 
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -209,7 +232,8 @@ def show_login_page_on_button():
         res = user.login(flask.request.form["login_usr"], cryptpw)
         if res:
             if "forward" in flask.request.args:
-                # user tried to access a page but was not logged in. Change redirect target
+                # user tried to access a page but was not logged in.
+                # Change redirect target
                 response = flask.redirect(flask.request.args["forward"])
             else:
                 response = flask.redirect("/")
@@ -220,8 +244,11 @@ def show_login_page_on_button():
     else:
         # user wants to register
         if flask.request.form["reg_pwd"] != flask.request.form["reg_pwd_confirm"]:
-            return flask.render_template("error.html", error="Try again with matching passwords ;)\n\n\n\n\n"
-                                                             "Ignore the next line.")
+            return flask.render_template(
+                "error.html",
+                error="Try again with matching passwords ;)\n\n\n\n\n"
+                "Ignore the next line.",
+            )
         cryptpw = hashlib.sha256(flask.request.form["reg_pwd"].encode()).hexdigest()
         cryptmail = hashlib.sha256(flask.request.form["reg_mail"].encode()).hexdigest()
         res = udm.add_user(flask.request.form["reg_usr"], cryptpw, cryptmail)
@@ -229,11 +256,13 @@ def show_login_page_on_button():
             flask.flash("Account created! Please log in now!")
             return flask.redirect(flask.url_for("_login"))
         else:
-            return flask.render_template("error.html", error="Registration failed! Username already exists!")
+            return flask.render_template(
+                "error.html", error="Registration failed! Username already exists!"
+            )
 
 
-@app.route('/login', endpoint="_login")
-@app.route('/register', endpoint="_register")
+@app.route("/login", endpoint="_login")
+@app.route("/register", endpoint="_register")
 def show_login_page():
     """
     Provides the login & register page
@@ -244,10 +273,10 @@ def show_login_page():
         Either some page or a redirect
 
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -257,22 +286,25 @@ def show_login_page():
         if flask.request.path == "/login":
             if "forward" in flask.request.args:
                 # user tried accessing a blocked page. let them log in and forward them
-                return flask.render_template('login.html', mode="l", forward=flask.request.args["forward"])
+                return flask.render_template(
+                    "login.html", mode="l", forward=flask.request.args["forward"]
+                )
             # user wants to login
-            return flask.render_template('login.html', mode="l")
+            return flask.render_template("login.html", mode="l")
         else:
             # user wants to register
-            return flask.render_template('login.html', mode="r")
+            return flask.render_template("login.html", mode="r")
     # user is already logged in
     elif res:
-        return flask.render_template('login.html', mode="l", state=True,
-                                     loginname=current_user.get_id())
+        return flask.render_template(
+            "login.html", mode="l", state=True, loginname=current_user.get_id()
+        )
     else:
         # should never happen, but for good measure, log out user and show login page
         return flask.redirect(flask.url_for("logout"))
 
 
-@app.route('/user')
+@app.route("/user")
 @login_required
 def show_user_page():
     """
@@ -283,16 +315,18 @@ def show_user_page():
     str
         The user page
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
     res = check_user_logged_in()
     if not res:  # if bad cookie or bad login in cookie
-        return flask.render_template("error.html", error="What are you doing here? You are not logged in!")
+        return flask.render_template(
+            "error.html", error="What are you doing here? You are not logged in!"
+        )
     elif res:
         udm = UserDataMngr(config)
         username = current_user.get_id()
@@ -302,22 +336,26 @@ def show_user_page():
         ac = AlarmChecker(config)
         alarms = ac.get_alarms_for_user(username)
         maplist = list(map(lambda m: str(m), range(MAPIDS[0], MAPIDS[1] + 1)))
-        return flask.render_template('user.html',
-                                     username=username,
-                                     maplist=maplist,
-                                     useralarms=alarms,
-                                     discord_id=discord_id,
-                                     tm_login=tm_login,
-                                     alarm_enabled=True if discord_id != "" else False,
-                                     loginname=username,
-                                     finlist=build_fin_json()
-                                     )
+        return flask.render_template(
+            "user.html",
+            username=username,
+            maplist=maplist,
+            useralarms=alarms,
+            discord_id=discord_id,
+            tm_login=tm_login,
+            alarm_enabled=True if discord_id != "" else False,
+            loginname=username,
+            finlist=build_fin_json(),
+        )
     else:
         # TODO: Delete cookie here
-        return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
+        return flask.render_template(
+            "error.html",
+            error="Something went wrong on the user page, idk. Do :prayge:",
+        )
 
 
-@app.route('/user', methods=['POST'])
+@app.route("/user", methods=["POST"])
 @login_required
 def show_user_page_on_button():
     """
@@ -329,10 +367,10 @@ def show_user_page_on_button():
         The user page
 
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -360,25 +398,30 @@ def show_user_page_on_button():
         alarms = ac.get_alarms_for_user(username)
         discord_id = um.get_discord_id(username)
         tm_login = um.get_tm_login(username)
-        response = flask.make_response(flask.render_template('user.html',
-                                                             username=username,
-                                                             maplist=maplist,
-                                                             useralarms=alarms,
-                                                             discord_id=discord_id,
-                                                             tm_login=tm_login,
-                                                             alarm_enabled=True if discord_id != "" else False,
-                                                             loginname=username,
-                                                             finlist=build_fin_json()
-                                                             )
-                                       )
+        response = flask.make_response(
+            flask.render_template(
+                "user.html",
+                username=username,
+                maplist=maplist,
+                useralarms=alarms,
+                discord_id=discord_id,
+                tm_login=tm_login,
+                alarm_enabled=True if discord_id != "" else False,
+                loginname=username,
+                finlist=build_fin_json(),
+            )
+        )
         return response
     else:
         # logout to be safe, idk how we got here
         logout_user()
-        return flask.render_template("error.html", error="Something went wrong on the user page, idk. Do :prayge:")
+        return flask.render_template(
+            "error.html",
+            error="Something went wrong on the user page, idk. Do :prayge:",
+        )
 
 
-@app.route('/logout')
+@app.route("/logout")
 @login_required
 def logout_and_redirect_index():
     """
@@ -408,7 +451,7 @@ def unauthorized_callback():
     return flask.redirect(flask.url_for("_login", forward=flask.request.path))
 
 
-@app.route('/stats')
+@app.route("/stats")
 def stats():
     """
     Can show basic visitor stats, when enabled in config.yaml
@@ -418,21 +461,21 @@ def stats():
     str
         Stats page
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
     global config
     if config["enable_stats_page"]:
-        return flask.Flask.render_template('stats.html')
+        return flask.Flask.render_template("stats.html")
     else:
         return flask.Flask.render_template("error.html", error="Stats page disabled")
 
 
-@app.route('/data.json')
+@app.route("/data.json")
 def json_serverdata_provider():
     """
     "API" used by front end JS. Provides updated server information in JSON format.
@@ -442,10 +485,10 @@ def json_serverdata_provider():
     str
         Data in JSON format as a string
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
@@ -461,64 +504,26 @@ def json_serverdata_provider():
     return json.dumps(jsonifythis)
 
 
-@app.route('/fin.json')
+@app.route("/fin.json")
 def json_fin_provider():
     """
-    Provides the finished maps for a given TM login in JSON format. Data is built in build_fin_json, this
-    is a wrapper to provide data in a dedicated route.
+    Provides the finished maps for a given TM login in JSON format. Data is built in
+    build_fin_json, this is a wrapper to provide data in a dedicated route.
 
     Returns
     -------
     str
         list of fins in JSON string
     """
-    if flask.request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        userip = flask.request.environ['REMOTE_ADDR']
+    if flask.request.environ.get("HTTP_X_FORWARDED_FOR") is None:
+        userip = flask.request.environ["REMOTE_ADDR"]
     else:
-        userip = flask.request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+        userip = flask.request.environ["HTTP_X_FORWARDED_FOR"]  # if behind a proxy
 
     logger.info(f"Connection from {userip}")
 
     if not isinstance(current_user.get_id(), flask_login.AnonymousUserMixin):
         return build_fin_json()
-
-
-@app.route('/mapquery.json', methods=['GET'])
-def json_mapquery():
-    req_map = flask.request.args.get("mapid")
-    # check if input is integer
-    try:
-        search_map_id = int(req_map)
-    except ValueError:
-        return "- never, check your inputs!"
-    except TypeError:
-        return "- never, check your inputs!"
-    # check if input is in current map pool
-    if search_map_id < MAPIDS[0] or search_map_id > MAPIDS[1]:
-        # not in current map pool
-        return "- never, check your inputs!"
-
-    api.get_mapinfo()
-    # input seems ok, try to find next time map is played
-    deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
-    # remove all None from servers which do not have map
-    deltas = [i for i in deltas if i[0]]
-    # get only result with lowest time. Also, do this stupidly. No need for sorting shenanigans, we will usually have
-    # less than 20 elements.
-    lowest_delta = (("9999", "00"), "someservernumber")
-    for d in deltas:
-        # d is Tuple[Tuple[str, str], str]
-        # compare hours
-        if int(d[0][0]) < int(lowest_delta[0][0]):
-            lowest_delta = d
-        elif int(d[0][0]) == int(lowest_delta[0][0]):
-            # hours are equal, compare minutes
-            if int(d[0][1]) < int(lowest_delta[0][1]):
-                lowest_delta = d
-
-    # return json.dumps([search_map_id, deltas]) # return [mapid, timedelta]
-    # return time delta to queried map until next play. Omit server name.
-    return lowest_delta[0][0] + ":" + lowest_delta[0][1]
 
 
 def build_fin_json():
@@ -583,11 +588,11 @@ def check_user_logged_in():
 #   |_| |_| |_|\__,_|_|_| |_|
 #
 # Reading config file
-with open(Path(__file__).parent / "config.yaml", "r") as conffile:
+with open(Path(__file__).parents[2] / "config.yaml", "r") as conffile:
     config = yaml.load(conffile, Loader=yaml.FullLoader)
 
 # Read flask secret (required for flask.flash and flask_login)
-with open(Path(__file__).parent / "secrets.yaml", "r") as secfile:
+with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
     secrets = yaml.load(secfile, Loader=yaml.FullLoader)
     app.secret_key = secrets["flask_secret"]
     del secrets
@@ -596,22 +601,24 @@ MAPIDS = (config["min_mapid"], config["max_mapid"])
 
 if config["logtype"] == "STDOUT":
     pass
-    logging.basicConfig(
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-# YES, this totally ignores threadsafety. On the other hand, it is quite safe to assume that it only will
-# occur very rarely that things get logged at the same time in this usecase.
-# Furthermore, logging is absolutely not critical in this case and mostly used for debugging. As long as the
+    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# YES, this totally ignores threadsafety. On the other hand, it is quite safe to assume
+# that it only will occur very rarely that things get logged at the same time in this
+# usecase. Furthermore, logging is absolutely not critical in this case and mostly used
+# for debugging. As long as the
 # SQLite DB doesn't break, we're safe!
 elif config["logtype"] == "FILE":
     config["logfile"] = config["logfile"].replace("~", os.getenv("HOME"))
     if not os.path.dirname(config["logfile"]) == "" and not os.path.exists(
-            os.path.dirname(config["logfile"])):
+        os.path.dirname(config["logfile"])
+    ):
         os.mkdir(os.path.dirname(config["logfile"]))
     f = open(os.path.join(os.path.dirname(__file__), config["logfile"]), "w+")
     f.close()
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        filename=config["logfile"])
+        filename=config["logfile"],
+    )
 else:
     print("ERROR: Logging not correctly configured!")
     exit(1)
@@ -623,7 +630,8 @@ logger = logging.getLogger(config["logger_name"])
 logger.setLevel(eval("logging." + config["loglevel"]))
 
 if config["log_visits"]:
-    # Enable logging of visitors to dedicated file. More comfortable than using system log to count visitors.
+    # Enable logging of visitors to dedicated file. More comfortable than using system
+    # log to count visitors.
     # Counting with "cat visits.log | wc -l"
     f = open(os.path.join(os.path.dirname(__file__), config["visits_logfile"]), "a+")
     f.close()

@@ -1,12 +1,14 @@
 import datetime
-from typing import List, Union, Dict
+from typing import Dict, List, Union
 
 
 class PlaylistHandler:
     playlist = []
     original_list = []
 
-    def __init__(self, config: Dict[str, Union[str, list, int]], playlist: List[int] = None):
+    def __init__(
+        self, config: Dict[str, Union[str, list, int]], playlist: List[int] = None
+    ):
         if playlist is None:
             self.playlist = list(range(config["min_mapid"], config["max_mapid"] + 1))
             # make a copy
@@ -33,14 +35,20 @@ class PlaylistHandler:
         # how many map changes are needed until map is juked?
         pos_in_list_current_map = self.playlist.index(self.curmap)
         pos_in_list_search_map = self.playlist.index(search_id)
-        changes_needed = (pos_in_list_search_map - pos_in_list_current_map) % len(self.playlist)
+        changes_needed = (pos_in_list_search_map - pos_in_list_current_map) % len(
+            self.playlist
+        )
         if changes_needed < 0:
             changes_needed += self.original_list[-1] - self.original_list[0] + 1
         minutes_time_to_juke = int(changes_needed * timelimit)
-        already_played_time = self.playtime_curmap + int((datetime.datetime.now() - self.last_update).seconds)
+        already_played_time = self.playtime_curmap + int(
+            (datetime.datetime.now() - self.last_update).seconds
+        )
         minutes_time_to_juke -= int(already_played_time / 60)
         # date and time, when map is juked next (without compensation of minutes)
-        play_time = datetime.datetime.now() + datetime.timedelta(minutes=minutes_time_to_juke)
+        # play_time = datetime.datetime.now() + datetime.timedelta(
+        #     minutes=minutes_time_to_juke
+        # )
         return self._minutes_to_hourmin_str(minutes_time_to_juke)
 
     def _minutes_to_hourmin_str(self, minutes):
