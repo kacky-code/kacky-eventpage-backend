@@ -53,6 +53,7 @@ class PlaylistHandler:
 
     def _minutes_to_hourmin_str(self, minutes):
         minutes = int(minutes)
+        # return Tuple[str, str] # (hours, minutes)
         return f"{int(minutes / 60):0>2d}", f"{minutes % 60:0>2d}"
 
     def get_playlist_from_now(self):
