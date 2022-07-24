@@ -3,8 +3,8 @@ from pathlib import Path
 
 import yaml
 
-from kacky_schedule.datastructures.playlist import PlaylistHandler
-from kacky_schedule.tm_format_resolver import TMstr
+from kacky_eventpage_backend.datastructures.playlist import PlaylistHandler
+from kacky_eventpage_backend.tm_format_resolver import TMstr
 
 
 class ServerInfo:

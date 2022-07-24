@@ -7,8 +7,8 @@ import flask
 import requests as requests
 import yaml
 
-from kacky_schedule.datastructures.server import ServerInfo
-from kacky_schedule.tm_format_resolver import TMstr
+from kacky_eventpage_backend.datastructures.server import ServerInfo
+from kacky_eventpage_backend.tm_format_resolver import TMstr
 
 TEST_API_RESPONSE = {
     "$o$i$a00K$a60a$aa0ck$0a0iest Kack$a00$a00y $g7 - Server 1": {

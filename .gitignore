@@ -57,5 +57,5 @@ visits.log
 .idea
 *__pycache__/
 stuff.db
-src/kacky_schedule/static/mapthumbs
+src/kacky_eventpage_backend/static/mapthumbs
 secrets.yaml

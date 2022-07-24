@@ -16,10 +16,10 @@ from flask_login import (
     logout_user,
 )
 
-from kacky_schedule.db_ops.alarm_checker import AlarmChecker
-from kacky_schedule.kacky_api_handler import KackyAPIHandler
-from kacky_schedule.usermanagement.user_operations import UserDataMngr
-from kacky_schedule.usermanagement.user_session_handler import User
+from kacky_eventpage_backend.db_ops.alarm_checker import AlarmChecker
+from kacky_eventpage_backend.kacky_api_handler import KackyAPIHandler
+from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
+from kacky_eventpage_backend.usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
 # Create LoginManager for user stuff

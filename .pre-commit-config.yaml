@@ -64,6 +64,6 @@ repos:
 #    -   id: detect-missing-css-classes
 #        args:
 #        - --css-files-dir
-#        - src/kacky_schedule/static
+#        - src/kacky_eventpage_backend/static
 #        - --html-files-dir
-#        - src/kacky_schedule/templates
+#        - src/kacky_eventpage_backend/templates

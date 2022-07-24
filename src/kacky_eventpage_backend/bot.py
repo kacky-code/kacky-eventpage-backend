@@ -47,7 +47,9 @@ def main():
     GUILD_ID = conf["guild"]
     if TOKEN == "" or GUILD_ID == "":
         raise RuntimeError("Bad values in secrets.yaml!")
-    bot.load_extension("kacky_schedule.discord_notification.kacky_notifier_cog")
+    bot.load_extension(
+        "kacky_eventpage_backend.discord_notification.kacky_notifier_cog"
+    )
     bot.run(TOKEN)
 
 

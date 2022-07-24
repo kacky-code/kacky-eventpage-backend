@@ -1,7 +1,7 @@
 import pathlib
 import sqlite3
 
-from kacky_schedule.usermanagement.user_operations import UserDataMngr
+from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
 
 
 class AlarmChecker:

@@ -6,7 +6,7 @@ import requests
 import yaml
 from discord.ext import commands, tasks
 
-from kacky_schedule.db_ops.alarm_checker import AlarmChecker
+from kacky_eventpage_backend.db_ops.alarm_checker import AlarmChecker
 
 
 class MyCog(commands.Cog):
