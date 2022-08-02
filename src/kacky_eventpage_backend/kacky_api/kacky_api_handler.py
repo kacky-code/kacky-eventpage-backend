@@ -31,7 +31,7 @@ class KackyAPIHandler:
         self.config = config
         self.logger = logging.getLogger(self.config["logger_name"])
         try:
-            with open(Path(__file__).parents[2] / "secrets.yaml") as b:
+            with open(Path(__file__).parents[3] / "secrets.yaml") as b:
                 self.api_pwd = yaml.load(b, yaml.FullLoader)["api_pwd"]
         except FileNotFoundError:
             raise FileNotFoundError("Missing secrets.yaml!")
