@@ -2,11 +2,9 @@ import json
 import logging
 from datetime import datetime as dt
 from datetime import timedelta as td
-from pathlib import Path
 
 import flask
 import requests as requests
-import yaml
 
 from kacky_eventpage_backend.datastructures.server import ServerInfo
 from kacky_eventpage_backend.kacky_api.testing_data import TESTING_DATA
@@ -19,7 +17,7 @@ class KackyAPIHandler:
     leaderboard = []
     last_update = {}
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, secrets: dict):
         """
         Set up interface to Kacky's API.
 
@@ -30,11 +28,7 @@ class KackyAPIHandler:
         """
         self.config = config
         self.logger = logging.getLogger(self.config["logger_name"])
-        try:
-            with open(Path(__file__).parents[3] / "secrets.yaml") as b:
-                self.api_pwd = yaml.load(b, yaml.FullLoader)["api_pwd"]
-        except FileNotFoundError:
-            raise FileNotFoundError("Missing secrets.yaml!")
+        self.api_pwd = secrets["api_pwd"]
 
     def _cache_update_required(self, field: str, cachetime: int):
         try:
