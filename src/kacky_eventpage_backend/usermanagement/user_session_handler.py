@@ -1,61 +1,44 @@
 import logging
-import pathlib
-import sqlite3
 from typing import Dict
 
-from flask_login import UserMixin
+import mariadb
 
 
-class User(UserMixin):
+class User:
     """
     This class satisfies the user object required for using flask_login. Handling user
     data and reading/updating the database mostly is handles in
     usermanagement.user_operations.UserDataMngr.
     """
 
-    def __init__(self, username: str, config: Dict):
+    def __init__(self, username: str, config: Dict, secrets):
         """
         Sets up obj, creates a database connection.
         """
         self.username = username
         self.logger = logging.getLogger(config["logger_name"])
         # set up database connection to manage projects
-        self.connection = sqlite3.connect(
-            pathlib.Path(__file__).parents[3] / "stuff.db"
-        )
+        try:
+            self.connection = mariadb.connect(
+                host=config["dbhost"],
+                port=config["dbport"],
+                user=secrets["dbuser"],
+                passwd=secrets["dbpwd"],
+                database=config["dbname"],
+            )
+        except mariadb.Error as e:
+            self.logger.error(f"Connecting to database failed! {e}")
+            raise e
         self.cursor = self.connection.cursor()
 
-    def is_authenticated(self) -> bool:
-        """
-        Returns if user is authenticated. Required by flask_login.UserMixin.
-
-        Returns
-        -------
-        bool
-        """
-        return True
-
-    def is_active(self) -> bool:
-        """
-        Returns if User account is active. Not used in project.
-        Required by flask_login.UserMixin.
-
-        Returns
-        -------
-        bool
-        """
-        return True
-
-    def is_anonymous(self) -> bool:
-        """
-        Returns if user is anonymous. Not used in project.
-        Required by flask_login.UserMixin.
-
-        Returns
-        -------
-        bool
-        """
-        return False
+    def exists(self):
+        query = "SELECT id FROM kack_users WHERE username = ?;"
+        self.cursor.execute(query, (self.username,))
+        dbdata = self.cursor.fetchall()
+        if len(dbdata) == 0:
+            return None
+        else:
+            return self
 
     def get_id(self):  # -> usermanagement.user_session_handler.User:
         """
@@ -65,11 +48,10 @@ class User(UserMixin):
         -------
 
         """
-        db_username_query = "SELECT username FROM kack_users WHERE username = ?"
+        db_username_query = "SELECT id FROM kack_users WHERE username = ?"
 
-        db_username_data = self.cursor.execute(
-            db_username_query, (self.username,)
-        ).fetchall()
+        self.cursor.execute(db_username_query, (self.username,))
+        db_username_data = self.cursor.fetchall()
         if len(db_username_data) == 0:
             return None
         elif len(db_username_data) > 1:
@@ -84,7 +66,7 @@ class User(UserMixin):
             else:
                 return None
 
-    def login(self, user: str, cryptpwd: str) -> bool:
+    def login(self, cryptpwd: str) -> bool:
         """
         Checks if the user can be logged in or not.
 
@@ -100,18 +82,19 @@ class User(UserMixin):
         bool
             True if user can be logged in, False if something is wrong
         """
-        query = "SELECT username, passwd FROM kack_users WHERE username = ?"
-        dbdata = self.cursor.execute(query, (user,)).fetchall()
+        query = "SELECT password FROM kack_users WHERE username = ?;"
+        self.cursor.execute(query, (self.username,))
+        dbdata = self.cursor.fetchall()
         if len(dbdata) == 0:
             return False
         elif len(dbdata) > 1:
             self.logger.critical(
-                f"Username {user} is multiple times in the database! How even?"
+                f"Username {self.username} is multiple times in the database! How even?"
             )
             return False
         else:
             # user exists and pwd was loaded from db. check pwd.
-            if cryptpwd == dbdata[0][1]:
+            if cryptpwd == dbdata[0][0]:
                 return True
             else:
                 return False
