@@ -1,8 +1,8 @@
 import hashlib
 import json
 import logging
-import pathlib
-import sqlite3
+
+import mariadb
 
 
 class UserDataMngr:
@@ -11,7 +11,7 @@ class UserDataMngr:
     handled in usermanagement.user_session_handler.User.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, secrets):
         """
         Sets up obj, creates a database connection.
         """
@@ -19,28 +19,18 @@ class UserDataMngr:
         self.logger = logging.getLogger(self.config["logger_name"])
 
         # set up database connection to manage projects
-        self.connection = sqlite3.connect(
-            pathlib.Path(__file__).parents[3] / "stuff.db"
-        )
+        try:
+            self.connection = mariadb.connect(
+                host=self.config["dbhost"],
+                port=self.config["dbport"],
+                user=secrets["dbuser"],
+                passwd=secrets["dbpwd"],
+                database=self.config["dbname"],
+            )
+        except mariadb.Error as e:
+            self.logger.error(f"Connecting to database failed! {e}")
+            raise e
         self.cursor = self.connection.cursor()
-        # Create table if not exists
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS `kack_users` (
-                            `id` INTEGER PRIMARY KEY,
-                            `username` TEXT NOT NULL,
-                            `passwd` TEXT NOT NULL,
-                            `mail` TEXT NOT NULL,
-                            `im_handle` TEXT,
-                            `tm_login` TEXT
-                            );"""
-        )
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS `alarms` (
-                            `username` TEXT PRIMARY KEY,
-                            `setalarms` TEXT
-                            );"""
-        )
-        self.connection.commit()
 
         self.hashgen = hashlib.sha256
 
@@ -83,45 +73,35 @@ class UserDataMngr:
         self.logger.info(f"Trying to create user {user}.")
         # Check if user already exists
         query = "SELECT username FROM kack_users WHERE username = ?;"
-        if not self.cursor.execute(query, (user,)).fetchall():
+        self.cursor.execute(query, (user,))
+        if not self.cursor.fetchall():
+            self.connection.commit()
             self.logger.info(f"User {user} does not yet exist. Creating.")
-            query = (
-                "INSERT INTO kack_users(username, passwd, mail, tm_login) "
-                "VALUES (?, ?, ?, '');"
-            )
+            # query = "INSERT INTO kack_users(username, passwd, mail) VALUES (?, ?, ?);"
+            query = "INSERT INTO kack_users(username, password, mail) VALUES (?, ?, ?);"
             self.cursor.execute(query, (user, cryptpwd, cryptmail))
-            query = "INSERT INTO alarms(username, setalarms) VALUES (?, '');"
-            self.cursor.execute(query, (user,))
             self.connection.commit()
             return True
         else:
             self.logger.error(f"User {user} already exists! Aborting user creation!")
             return False
 
-    def set_discord_id(self, user: str, id: str):
-        """
-        Updates the users discord user handle in DB.
+    def set_discord_id(self, userid: int, id: str):
+        query = """
+            SELECT `discord_handle` FROM `user_fields`
+            WHERE `id` = ?;
+            """
+        self.cursor.execute(query, (userid,))
+        res = self.cursor.fetchall()
+        if len(res) > 1:
+            self.logger.critical(
+                f"While updating discord handle for userid={userid}, "
+                f"multiple entries were found!"
+            )
+            raise ValueError("Ambiguous data found for update!")
 
-        Parameters
-        ----------
-        user: str
-            user for whom update shall be done
-        id: str
-            updated discord handle
-        """
-        query = "SELECT im_handle FROM kack_users WHERE username = ?;"
-        cur_IM = self.cursor.execute(query, (user,)).fetchall()
-        try:
-            cur_IM_dict = json.loads(cur_IM)
-        except (json.decoder.JSONDecodeError, TypeError):
-            # data either empty or borked
-            cur_IM_dict = {"discord": id}
-        else:
-            # else Update
-            cur_IM_dict["discord"] = id
-
-        query = "UPDATE kack_users SET im_handle = ? WHERE username = ?"
-        self.cursor.execute(query, (json.dumps(cur_IM_dict), user))
+        query = "UPDATE `user_fields` SET `discord_handle` = ? WHERE `id` = ?"
+        self.cursor.execute(query, (id, userid))
         self.connection.commit()
 
     def get_discord_id(self, user: str) -> str:
