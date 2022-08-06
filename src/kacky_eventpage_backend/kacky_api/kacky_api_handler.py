@@ -128,6 +128,7 @@ class KackyAPIHandler:
         # add password to request
         request_params["password"] = self.api_pwd
 
+        qres = None
         try:
             if value == "serverinfo":
                 qres = requests.get(
@@ -143,17 +144,14 @@ class KackyAPIHandler:
                 qres = ""
                 raise NotImplementedError
             else:
+                qres = ""
                 raise NotImplementedError(
                     f"API does not support an endpoint for '{value}'"
                 )
-        except ConnectionError:
-            flask.render_template(
-                "error.html", error="Could not contact KK server. RIP!"
-            )
-            return
-        except json.decoder.JSONDecodeError:
-            flask.render_template("error.html", error="Invalid output from Kacky API!")
-            return
+        except ConnectionError as e:
+            self.logger.critical(f"Could not connect to Kacky API! {e}")
+        except json.decoder.JSONDecodeError as e:
+            self.logger.critical(f"Response from Kacky API is malformed! {e}")
 
         # update cache age
         self.last_update[value] = dt.now().timestamp
