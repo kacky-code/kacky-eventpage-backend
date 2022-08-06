@@ -12,10 +12,12 @@ from flask_jwt_extended import (
     JWTManager,
     create_access_token,
     current_user,
+    get_jwt,
     jwt_required,
 )
 
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
+from kacky_eventpage_backend.usermanagement.token_blacklist import TokenBlacklist
 from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
 from kacky_eventpage_backend.usermanagement.user_session_handler import User
 
@@ -95,9 +97,9 @@ def register_user():
     # curl -d "reg_usr=peter&reg_mail=peter&reg_pwd=peter"
     # -X POST http://localhost:5000/register
     udm = UserDataMngr(config, secrets)
-    cryptpw = hashlib.sha256(flask.request.json["reg_pwd"].encode()).hexdigest()
-    cryptmail = hashlib.sha256(flask.request.json["reg_mail"].encode()).hexdigest()
-    res = udm.add_user(flask.request.json["reg_usr"], cryptpw, cryptmail)
+    cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
+    cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
+    res = udm.add_user(flask.request.json["user"], cryptpw, cryptmail)
     if res:
         return flask_restful.http_status_message(201)
     else:
@@ -108,17 +110,17 @@ def register_user():
 def login_user_api():
     # curl -d '{"login_usr":"asd", "login_pwd":"asd"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
-    assert flask.request.json["login_usr"]
-    assert flask.request.json["login_pwd"]
-    user = User(flask.request.json["login_usr"], config, secrets).exists()
+    assert flask.request.json["user"]
+    assert flask.request.json["pwd"]
+    user = User(flask.request.json["user"], config, secrets).exists()
 
-    if not user or not user.login(flask.request.json["login_pwd"]):
+    if not user or not user.login(flask.request.json["pwd"]):
         return flask.jsonify("Wrong username or password"), 401
 
     # user wants to login
     # cryptpw = hashlib.sha256(flask.request.json["login_pwd"].encode()).hexdigest()
     # login_success = user.login(cryptpw)
-    login_success = user.login(flask.request.json["login_pwd"])
+    login_success = user.login(flask.request.json["pwd"])
 
     if login_success:
         access_token = create_access_token(identity=user)
@@ -138,8 +140,8 @@ def logout_and_redirect_index():
     flask.Response
         Redirect to the index page after logging out
     """
-    # logout_user()
-    return flask.redirect("/")
+    TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
+    return flask_restful.http_status_message(200)
 
 
 @app.route("/data.json")
@@ -173,7 +175,7 @@ def build_fin_json():
     )
     if flask.request.json["username"]:
         um = UserDataMngr(config, secrets)
-        tm_login = um.get_tm_login(flask.request.json["username"])
+        tm_login = um.get_tm20_login(flask.request.json["username"])
     try:
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
@@ -189,6 +191,12 @@ def build_fin_json():
 @jwt_required()
 def protected():
     return flask.jsonify(name=current_user.username, id=current_user.get_id())
+
+
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
+    jti = jwt_payload["jti"]
+    return TokenBlacklist(config, secrets).check_token(jti)
 
 
 @jwt.user_identity_loader
