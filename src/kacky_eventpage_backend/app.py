@@ -45,8 +45,7 @@ def get_pagedata(rawservernum=False):
     """
     curtime = datetime.datetime.now()
     curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
-    api.get_mapinfo()
-    curmaps = list(map(lambda s: s.cur_map, api.servers.values()))
+    curmaps = list(map(lambda s: s.cur_map, api.serverinfo.values()))
     if config["testing_mode"]:
         ttl = (
             datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
@@ -70,22 +69,23 @@ def get_pagedata(rawservernum=False):
         )
     if rawservernum:
         servernames = list(
-            map(lambda s: s.name.string.split(" - ")[1], api.servers.values())
+            map(lambda s: s.name.string.split(" - ")[1], api.serverinfo.values())
         )
     else:
-        servernames = list(map(lambda s: s.name.html, api.servers.values()))
-    timeplayed = list(map(lambda s: s.timeplayed, api.servers.values()))
+        servernames = list(map(lambda s: s.name.html, api.serverinfo.values()))
+    timeplayed = list(map(lambda s: s.timeplayed, api.serverinfo.values()))
     jukebox = list(
-        map(lambda s: s.playlist.get_playlist_from_now(), api.servers.values())
+        map(lambda s: s.playlist.get_playlist_from_now(), api.serverinfo.values())
     )
-    timelimits = list(map(lambda s: s.timelimit, api.servers.values()))
+    timelimits = list(map(lambda s: s.timelimit, api.serverinfo.values()))
     serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
     return serverinfo, curtimestr, timeleft
 
     """
     api.get_mapinfo()
     # input seems ok, try to find next time map is played
-    deltas = list(map(lambda s: s.find_next_play(search_map_id), api.servers.values()))
+    deltas = list(map(lambda s: s.find_next_play(search_map_id),
+                      api.serverinfo.values()))
     # remove all None from servers which do not have map
     deltas = [i for i in deltas if i[0]]
 
