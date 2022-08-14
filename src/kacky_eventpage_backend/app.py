@@ -176,6 +176,9 @@ def build_fin_json():
     if flask.request.json["username"]:
         um = UserDataMngr(config, secrets)
         tm_login = um.get_tm20_login(flask.request.json["username"])
+    else:
+        tm_login = flask.request.json["tm_login"]
+
     try:
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
