@@ -144,6 +144,33 @@ _TEST_LOGIN_RESPONSE_AMG = {
     ],
 }
 
+# asd-tm20
+_TEST_LOGIN_RESPONSE_ASD20 = {
+    "finishes": 20,
+    "mapids": [
+        "201",
+        "202",
+        "204",
+        "211",
+        "215",
+        "219",
+        "223",
+        "225",
+        "230",
+        "236",
+        "243",
+        "245",
+        "247",
+        "252",
+        "259",
+        "262",
+        "269",
+        "272",
+        "274",
+        "275",
+    ],
+}
+
 _TEST_LEADERBOARD_RESPONSE = [
     [1, "sexyboii", "plastorex", 3.7],
     [2, "$abcsimo_$777900", "simo_900", 4.2],
@@ -153,6 +180,6 @@ _TEST_LEADERBOARD_RESPONSE = [
 
 TESTING_DATA = {
     "serverinfo": _TEST_API_RESPONSE,
-    "userfins": _TEST_LOGIN_RESPONSE_AMG,
+    "userfins": _TEST_LOGIN_RESPONSE_ASD20,
     "leaderboard": _TEST_LEADERBOARD_RESPONSE,
 }

@@ -108,7 +108,8 @@ def register_user():
 
 @app.route("/login", methods=["POST"])
 def login_user_api():
-    # curl -d '{"login_usr":"asd", "login_pwd":"asd"}'
+    # curl -d '{"login_usr":"asd",
+    # "login_pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
     assert flask.request.json["user"]
     assert flask.request.json["pwd"]
@@ -166,19 +167,11 @@ def json_serverdata_provider():
     return json.dumps(jsonifythis)
 
 
-@app.route("/fin.json", methods=["POST"])
+@app.route("/fin.json")
 @jwt_required()
 def build_fin_json():
-    # XOR only one parameter is set
-    assert (flask.request.json["tm_login"] and not flask.request.json["username"]) or (
-        flask.request.json["username"] and not flask.request.json["tm_login"]
-    )
-    if flask.request.json["username"]:
-        um = UserDataMngr(config, secrets)
-        tm_login = um.get_tm20_login(flask.request.json["username"])
-    else:
-        tm_login = flask.request.json["tm_login"]
-
+    um = UserDataMngr(config, secrets)
+    tm_login = um.get_tm20_login(current_user.get_id())
     try:
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
@@ -188,6 +181,20 @@ def build_fin_json():
             return {"finishes": 0, "mapids": []}
     except Exception:
         return {"finishes": 0, "mapids": []}
+
+
+@app.route("/spreadsheet")
+@jwt_required()
+def spreadsheet_full():
+    # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
+    # http://localhost:5005/spreadsheet
+    um = UserDataMngr(config, secrets)
+    userid = current_user.get_id()
+    sheet = um.get_spreadsheet_all(userid)
+    finned = build_fin_json()
+    for fin in finned["mapids"]:
+        sheet[fin]["finished"] = True
+    return json.dumps(sheet)
 
 
 @app.route("/who_am_i", methods=["GET"])
