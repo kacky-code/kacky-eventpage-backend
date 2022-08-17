@@ -214,9 +214,11 @@ def spreadsheet_full():
         dataset["server"] = earliest[1]
     return json.dumps(sheet)
 
+
 @app.route("/")
 def ind():
     return "nothing to see here, go awaiii"
+
 
 @app.route("/who_am_i", methods=["GET"])
 @jwt_required()
