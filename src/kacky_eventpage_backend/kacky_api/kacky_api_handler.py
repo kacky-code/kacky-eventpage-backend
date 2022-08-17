@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime as dt
 from datetime import timedelta as td
+from typing import Any, Dict
 
 import requests as requests
 
@@ -74,7 +75,9 @@ class KackyAPIHandler:
         self._last_update["serverinfo"] = dt.now()
 
     def get_fin_info(self, tmlogin):
-        findata = self._do_api_request({"login": tmlogin, "password": self.api_pwd})
+        findata = self._do_api_request(
+            "userfins", request_params={"login": tmlogin, "password": self.api_pwd}
+        )
         return findata
 
     def _update_leaderboard(self):
@@ -101,8 +104,10 @@ class KackyAPIHandler:
         self._leaderboard = krdata
         self._last_update["leaderboard"] = dt.now()
 
-    def _do_api_request(self, value, request_params={}):
+    def _do_api_request(self, value, request_params: Dict[str, Any] = None):
         # check for testing mode
+        if request_params is None:
+            request_params = {}
         if self.config["testing_mode"]:
             return TESTING_DATA[value]
         self.logger.info("Updating self.servers.")

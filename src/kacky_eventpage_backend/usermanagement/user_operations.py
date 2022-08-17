@@ -107,6 +107,17 @@ class UserDataMngr:
         self.cursor.execute(query, (userid,))
         return self.cursor.fetchone()[0]
 
+    def set_discord_alarms(self, userid: int, alarms):
+        query = "UPDATE user_fields SET alarms = ? WHERE id = ?;"
+        alarms_str = ";".join([str(a) for a in alarms])
+        self.cursor.execute(query, (alarms_str, userid))
+        self.connection.commit()
+
+    def get_discord_alarms(self, userid: int):
+        query = "SELECT alarms from user_fields WHERE id = ?;"
+        self.cursor.execute(query, (userid,))
+        return [int(map) for map in self.cursor.fetchone()[0].split(";")]
+
     def set_tm20_login(self, user_id: int, tmid: str):
         """
         Sets the users TM login in the DB.
@@ -175,10 +186,53 @@ class UserDataMngr:
         self.cursor.execute(query, (user_id,))
         return self.cursor.fetchone()[0]
 
-    def get_spreadsheet_all(self, userid: int):
-        query = "SELECT * FROM spreadsheet WHERE user_id = ?;"
+    def get_spreadsheet_all(self, userid: str):
+        default_line = {
+            "map_diff": 0,
+            "map_pb": "",
+            "map_rank": None,
+            "clip": "",
+            "alarm": False,
+            "finished": False,
+        }
+        query = """
+        SELECT
+            spreadsheet.map_diff,
+            spreadsheet.map_pb,
+            spreadsheet.map_rank,
+            spreadsheet.clip,
+            maps.kacky_id
+        FROM spreadsheet
+        LEFT JOIN maps ON spreadsheet.map_id = maps.id
+        WHERE user_id = ?;
+        """
         self.cursor.execute(query, (userid,))
-        return self.cursor.fetchall()
+        # get column names to build a dictionary as result
+        columns = [col[0] for col in self.cursor.description]
+        qres = self.cursor.fetchall()
+        # make a dict from the result set
+        sdict = [dict(zip(columns, row)) for row in qres]
+        # make kacky_ids the key of a dict containing all the data (do this in
+        # an extra step to use `kacky_id` key from the dict instead of some
+        # hardcoded array position. Slightly more work, but should be fine
+        sdict = {row["kacky_id"]: row for row in sdict}
+        # STUPID CODE STARTS HERE
+        # remove kacky_id from data, as it's the key now
+        # also add missing keys with default values
+        for map in sdict.values():
+            del map["kacky_id"]
+            if len(map) < len(default_line):
+                for key in default_line:
+                    if key not in map:
+                        map[key] = default_line[key]
+        # add missing maps which do not have any data stored
+        for missmap in range(self.config["min_mapid"], self.config["max_mapid"] + 1):
+            if missmap not in sdict.keys():
+                sdict.setdefault(missmap, default_line.copy())
+        discord_alarms = self.get_discord_alarms(userid)
+        for alarm in discord_alarms:
+            sdict[alarm]["alarm"] = True
+        return sdict
 
     def get_spreadsheet_line(self, userid: int, mapid: int):
         query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
