@@ -196,6 +196,9 @@ def spreadsheet_full():
         sheet[fin]["finished"] = True
     return json.dumps(sheet)
 
+@app.route("/")
+def ind():
+    return "nothing to see here, go awaiii"
 
 @app.route("/who_am_i", methods=["GET"])
 @jwt_required()
@@ -273,7 +276,7 @@ if config["log_visits"]:
     # Enable logging of visitors to dedicated file. More comfortable than using system
     # log to count visitors.
     # Counting with "cat visits.log | wc -l"
-    f = open(os.path.join(os.path.dirname(__file__), config["visits_logfile"]), "a+")
+    f = open(config["visits_logfile"], "a+")
     f.close()
 
 # Set up JWT
