@@ -34,6 +34,12 @@ logfile: flask.log # might require absolute path
 loglevel: DEBUG # DEBUG, INFO, WARNING, ERROR, CRITICAL
 logger_name: KKmaptimes
 
+# DATABASE SETTINGS
+dbhost: localhost
+dbport: 3306
+dbname: kacky_testing
+# dbuser and dbpwd in secrets.yaml need to be set!
+
 # TESTING MODE
 testing_mode: 0
 testing_compend: 30.01.2050 22:00

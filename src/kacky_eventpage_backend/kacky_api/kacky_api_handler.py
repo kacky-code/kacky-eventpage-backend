@@ -3,7 +3,6 @@ import logging
 from datetime import datetime as dt
 from datetime import timedelta as td
 
-import flask
 import requests as requests
 
 from kacky_eventpage_backend.datastructures.server import ServerInfo
@@ -13,9 +12,9 @@ from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
 
 class KackyAPIHandler:
     # dict managing servers
-    servers = {}
-    leaderboard = []
-    last_update = {}
+    _serverinfo = {}
+    _leaderboard = []
+    _last_update = {}
 
     def __init__(self, config: dict, secrets: dict):
         """
@@ -30,63 +29,55 @@ class KackyAPIHandler:
         self.logger = logging.getLogger(self.config["logger_name"])
         self.api_pwd = secrets["api_pwd"]
 
+    def __getattr__(self, item):
+        if item == "serverinfo":
+            if self._cache_update_required("serverinfo", 60):
+                self._update_server_info()
+            return self._serverinfo
+        if item == "leaderboard":
+            if self._cache_update_required("serverinfo", 600):
+                self._update_leaderboard()
+            return self._leaderboard
+
     def _cache_update_required(self, field: str, cachetime: int):
         try:
             # check if last update of `field` is less than `cachetime` seconds old
-            if dt.fromtimestamp(self.last_update[field]) < dt.now() + td(seconds=60):
+            if self._last_update[field] < dt.now() + td(seconds=cachetime):
                 self.logger.debug(f"'{field}' still valid in cache")
                 return 0
+            else:
+                self.logger.debug(f"'{field}' needs updating")
+                return 1
         except KeyError:
             # `field` was never accessed before, set up entry in dict
-            self.logger.debug(f"Setting up caching for '{field}'")
-            self.last_update[field] = dt.now().timestamp()
-        finally:
-            # catch-all when cache needs update
-            self.logger.debug(f"'{field}' needs updating")
+            self.logger.debug(
+                f"Setting up caching for '{field}' and preparing to update"
+            )
+            self._last_update[field] = dt.fromtimestamp(0)
             return 1
 
-    def update_server_info(self):
-        if self._cache_update_required("serverinfo", 60):
-            # update cache
-            krdata = self.do_api_request("serverinfo")
-        else:
-            self.logger.info("Using cached serverinfo")
-            return
+    def _update_server_info(self):
+        krdata = self._do_api_request("serverinfo")
 
         for server in krdata.keys():
             self.logger.debug(f"updating server '{server}'")
             d = krdata[server]
             self.logger.debug(f"new data: {d}")
             # check for first run
-            if server not in self.servers:
+            if server not in self._serverinfo:
                 # this is the first run, need to build objects
-                self.servers[server] = ServerInfo(TMstr(server), self.config)
+                self._serverinfo[server] = ServerInfo(TMstr(server), self.config)
 
             # update existing ServerInfo object
-            self.servers[server].update_info(d)
+            self._serverinfo[server].update_info(d)
 
-        self.last_server_update = dt.now()
+        self._last_update["serverinfo"] = dt.now()
 
     def get_fin_info(self, tmlogin):
-        findata = self.do_api_request({"login": tmlogin, "password": self.api_pwd})
+        findata = self._do_api_request({"login": tmlogin, "password": self.api_pwd})
         return findata
 
-    def get_mapinfo(self):
-        if (
-            any(map(lambda s: s.timeplayed < 0, self.servers.values()))
-            or self.servers == {}
-        ):
-            self.update_server_info()
-
-    def update_leaderboard(self):
-        if (
-            not self.last_leader_update < dt.now() - td(minutes=10)
-            and not self.leaderboard == []
-        ):
-            # if last update is not older than one minute, use cached data
-            self.logger.info("Use cached self.leaderboard.")
-            return
-
+    def _update_leaderboard(self):
         self.logger.info("Updating self.leaderboard.")
         try:
             # TODO: change to actual api
@@ -97,29 +88,20 @@ class KackyAPIHandler:
             krdata = TESTING_DATA["leaderboard"]
         except ConnectionError:
             self.logger.error("Could not connect to KK API!")
-            flask.render_template(
-                "error.html", error="Could not contact KK server. RIP!"
-            )
             return
         except json.decoder.JSONDecodeError:
             # self.logger.error("Using TEST_API_RESPONSE")
             # krdata = TEST_LEADERBOARD_RESPONSE
             self.logger.error("Could not connect to KK API!")
-            flask.render_template(
-                "error.html", error="Could not contact KK server. RIP!"
-            )
             return
 
         for idx, _ in enumerate(krdata):
             krdata[idx][1] = TMstr(krdata[idx][1]).html
 
-        self.leaderboard = krdata
-        self.last_leader_update = dt.now()
+        self._leaderboard = krdata
+        self._last_update["leaderboard"] = dt.now()
 
-    def get_leaderboard(self):
-        self.update_leaderboard()
-
-    def do_api_request(self, value, request_params={}):
+    def _do_api_request(self, value, request_params={}):
         # check for testing mode
         if self.config["testing_mode"]:
             return TESTING_DATA[value]
@@ -128,6 +110,7 @@ class KackyAPIHandler:
         # add password to request
         request_params["password"] = self.api_pwd
 
+        qres = None
         try:
             if value == "serverinfo":
                 qres = requests.get(
@@ -143,18 +126,15 @@ class KackyAPIHandler:
                 qres = ""
                 raise NotImplementedError
             else:
+                qres = ""
                 raise NotImplementedError(
                     f"API does not support an endpoint for '{value}'"
                 )
-        except ConnectionError:
-            flask.render_template(
-                "error.html", error="Could not contact KK server. RIP!"
-            )
-            return
-        except json.decoder.JSONDecodeError:
-            flask.render_template("error.html", error="Invalid output from Kacky API!")
-            return
+        except ConnectionError as e:
+            self.logger.critical(f"Could not connect to Kacky API! {e}")
+        except json.decoder.JSONDecodeError as e:
+            self.logger.critical(f"Response from Kacky API is malformed! {e}")
 
         # update cache age
-        self.last_update[value] = dt.now().timestamp
+        self._last_update[value] = dt.now()
         return qres

@@ -1,5 +1,4 @@
 import hashlib
-import json
 import logging
 
 import mariadb
@@ -77,7 +76,6 @@ class UserDataMngr:
         if not self.cursor.fetchall():
             self.connection.commit()
             self.logger.info(f"User {user} does not yet exist. Creating.")
-            # query = "INSERT INTO kack_users(username, passwd, mail) VALUES (?, ?, ?);"
             query = "INSERT INTO kack_users(username, password, mail) VALUES (?, ?, ?);"
             self.cursor.execute(query, (user, cryptpwd, cryptmail))
             self.connection.commit()
@@ -86,82 +84,110 @@ class UserDataMngr:
             self.logger.error(f"User {user} already exists! Aborting user creation!")
             return False
 
-    def set_discord_id(self, userid: int, id: str):
-        query = """
-            SELECT `discord_handle` FROM `user_fields`
-            WHERE `id` = ?;
-            """
-        self.cursor.execute(query, (userid,))
-        res = self.cursor.fetchall()
-        if len(res) > 1:
-            self.logger.critical(
-                f"While updating discord handle for userid={userid}, "
-                f"multiple entries were found!"
-            )
-            raise ValueError("Ambiguous data found for update!")
-
+    def set_discord_id(self, userid: int, new_discord_id: str):
         query = "UPDATE `user_fields` SET `discord_handle` = ? WHERE `id` = ?"
-        self.cursor.execute(query, (id, userid))
+        self.cursor.execute(query, (new_discord_id, userid))
         self.connection.commit()
 
-    def get_discord_id(self, user: str) -> str:
+    def get_discord_id(self, userid: str) -> str:
         """
         Read current Discord ID from the database
 
         Parameters
         ----------
-        user : str
+        userid : str
             username in the KK system
 
         Returns
         -------
         str
-            Discord ID or "", if there is none stored
+            Discord ID
         """
-        query = "SELECT im_handle FROM kack_users WHERE username = ?;"
-        cur_IM = self.cursor.execute(query, (user,)).fetchall()
-        if not cur_IM:
-            return ""
-        else:
-            cur_IM = cur_IM[0][0]
-        try:
-            cur_IM = json.loads(cur_IM)
-        except (json.decoder.JSONDecodeError, TypeError):
-            return ""
-        if "discord" in cur_IM:
-            return cur_IM["discord"]
-        else:
-            return ""
+        query = "SELECT `discord_handle` FROM `user_fields` WHERE `id` = ?;"
+        self.cursor.execute(query, (userid,))
+        return self.cursor.fetchone()[0]
 
-    def set_tm_login(self, user: str, tmid: str):
+    def set_tm20_login(self, user_id: int, tmid: str):
         """
         Sets the users TM login in the DB.
 
         Parameters
         ----------
-        user: str
+        user_id: str
             user for whom to set the TM login
         tmid:
             TM account name
         """
-        query = "UPDATE kack_users SET tm_login = ? WHERE username = ?"
-        self.cursor.execute(query, (tmid, user))
+        query = "UPDATE `user_fields` SET `tm20_login` = ? WHERE `id` = ?"
+        self.cursor.execute(query, (tmid, user_id))
         self.connection.commit()
 
-    def get_tm_login(self, user) -> str:
+    def get_tm20_login(self, user_id: int) -> str:
         """
         Returns the TM login for a user from DB
 
         Parameters
         ----------
-        user: str
+        user_id: str
             User for who the TM account shall be returned
 
         Returns
+        -------
         str
             TM login for specified user
         -------
 
         """
-        query = "SELECT tm_login FROM kack_users WHERE username = ?;"
-        return self.cursor.execute(query, (user,)).fetchall()[0][0]
+        query = "SELECT `tm20_login` FROM `user_fields` WHERE `id` = ?;"
+        self.cursor.execute(query, (user_id,))
+        return self.cursor.fetchone()[0]
+
+    def set_tmnf_login(self, user_id: int, tmid: str):
+        """
+        Sets the users TM login in the DB.
+
+        Parameters
+        ----------
+        user_id: str
+            user for whom to set the TM login
+        tmid:
+            TM account name
+        """
+        query = "UPDATE `user_fields` SET `tmnf_login` = ? WHERE `id` = ?"
+        self.cursor.execute(query, (tmid, user_id))
+        self.connection.commit()
+
+    def get_tmnf_login(self, user_id: int) -> str:
+        """
+        Returns the TM login for a user from DB
+
+        Parameters
+        ----------
+        user_id: str
+            User for who the TM account shall be returned
+
+        Returns
+        -------
+        str
+            TM login for specified user
+        """
+        query = "SELECT `tmnf_login` FROM `user_fields` WHERE `id` = ?;"
+        self.cursor.execute(query, (user_id,))
+        return self.cursor.fetchone()[0]
+
+    def get_spreadsheet_all(self, userid: int):
+        query = "SELECT * FROM spreadsheet WHERE user_id = ?;"
+        self.cursor.execute(query, (userid,))
+        return self.cursor.fetchall()
+
+    def get_spreadsheet_line(self, userid: int, mapid: int):
+        query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
+        self.cursor.execute(query, (userid, mapid))
+        return self.cursor.fetchall()
+
+    def fetchone_and_only_one(self):
+        qres = self.cursor.fetchall()
+        if len(qres) > 1:
+            raise AssertionError("Query returned more than one result set!")
+        else:
+            return qres

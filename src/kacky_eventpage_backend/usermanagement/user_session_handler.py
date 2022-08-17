@@ -31,6 +31,18 @@ class User:
             raise e
         self.cursor = self.connection.cursor()
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Exit hook, closes DB connection if object is destroyed
+
+        Parameters
+        ----------
+        exc_type
+        exc_val
+        exc_tb
+        """
+        self.connection.close()
+
     def exists(self):
         query = "SELECT id FROM kack_users WHERE username = ?;"
         self.cursor.execute(query, (self.username,))
