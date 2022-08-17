@@ -194,6 +194,24 @@ def spreadsheet_full():
     finned = build_fin_json()
     for fin in finned["mapids"]:
         sheet[fin]["finished"] = True
+    # add next play times
+    for mapid, dataset in sheet.items():
+        # api.get_mapinfo()
+        # input seems ok, try to find next time map is played
+        deltas = list(map(lambda s: s.find_next_play(mapid), api.serverinfo.values()))
+        # remove all None from servers which do not have map
+        deltas = [i for i in deltas if i[0]]
+        # check if we need to find the earliest play, if map is on multiple servers
+        earliest = deltas[0]
+        if len(deltas) > 1:
+            for d in deltas[1:]:
+                if int(earliest[0][0]) > int(d[0][0]):  # this server has lower hours
+                    if int(earliest[0][1]) > int(
+                        d[0][1]
+                    ):  # this server has lower minutes
+                        earliest = d
+        dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+        dataset["server"] = earliest[1]
     return json.dumps(sheet)
 
 
