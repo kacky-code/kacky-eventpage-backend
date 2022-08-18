@@ -94,7 +94,7 @@ def get_pagedata(rawservernum=False):
 
 @app.route("/register", methods=["POST"])
 def register_user():
-    # curl -d "reg_usr=peter&reg_mail=peter&reg_pwd=peter"
+    # curl -d "user=peter&mail=peter&pwd=peter"
     # -X POST http://localhost:5000/register
     udm = UserDataMngr(config, secrets)
     cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
@@ -108,8 +108,8 @@ def register_user():
 
 @app.route("/login", methods=["POST"])
 def login_user_api():
-    # curl -d '{"login_usr":"asd",
-    # "login_pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
+    # curl -d '{"user":"asd",
+    # "pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
     assert flask.request.json["user"]
     assert flask.request.json["pwd"]
@@ -184,17 +184,24 @@ def build_fin_json():
 
 
 @app.route("/spreadsheet")
-@jwt_required()
+@jwt_required(optional=True)
 def spreadsheet_full():
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
-    userid = current_user.get_id()
-    sheet = um.get_spreadsheet_all(userid)
-    finned = build_fin_json()
-    for fin in finned["mapids"]:
-        sheet[fin]["finished"] = True
-    # add next play times
+    # Check if user is logged in.
+    if not current_user:  # User not logged in
+        # Only provide base data
+        sheet = um.get_spreadsheet_all(None)
+    else:  # User logged in
+        # Add user specific data to the spreadsheet
+        userid = current_user.get_id()
+        sheet = um.get_spreadsheet_all(userid)
+        finned = build_fin_json()
+        for fin in finned["mapids"]:
+            sheet[fin]["finished"] = True
+
+    # add next play times for each map, regardless of login state
     for mapid, dataset in sheet.items():
         # api.get_mapinfo()
         # input seems ok, try to find next time map is played
@@ -212,7 +219,11 @@ def spreadsheet_full():
                         earliest = d
         dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
         dataset["server"] = earliest[1]
-    return json.dumps(sheet)
+    if not current_user:
+        # return with HTTP 401 to indicate no auth
+        return json.dumps(sheet), 401
+    else:
+        return json.dumps(sheet), 200
 
 
 @app.route("/")
