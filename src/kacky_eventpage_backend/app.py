@@ -16,6 +16,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 
+from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
 from kacky_eventpage_backend.usermanagement.token_blacklist import TokenBlacklist
 from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
@@ -26,26 +27,8 @@ jwt = JWTManager(app)
 config = {}
 
 
-def get_pagedata(rawservernum=False):
-    """
-    Loads and prepares data shown on index page
-
-    # Get page data
-    serverinfo, curtimestr, timeleft = get_pagedata()
-
-    Parameters
-    ----------
-    rawservernum:
-        Toggle on server ID format
-
-    Returns
-    -------
-    Tuple[list, list, list]
-        Information for the index page.
-    """
+def get_pagedata():
     curtime = datetime.datetime.now()
-    curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
-    curmaps = list(map(lambda s: s.cur_map, api.serverinfo.values()))
     if config["testing_mode"]:
         ttl = (
             datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
@@ -53,48 +36,35 @@ def get_pagedata(rawservernum=False):
         )
     else:
         ttl = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M") - curtime
-    if ttl.days < 0 or ttl.seconds < 0:
-        timeleft = (
-            abs(ttl.days),
-            abs(int(ttl.seconds // 3600)),
-            abs(int(ttl.seconds // 60) % 60),
-            -1,
-        )
-    else:
-        timeleft = (
-            abs(ttl.days),
-            abs(int(ttl.seconds // 3600)),
-            abs(int(ttl.seconds // 60) % 60),
-            1,
-        )
-    if rawservernum:
-        servernames = list(
-            map(lambda s: s.name.string.split(" - ")[1], api.serverinfo.values())
-        )
-    else:
-        servernames = list(map(lambda s: s.name.html, api.serverinfo.values()))
-    timeplayed = list(map(lambda s: s.timeplayed, api.serverinfo.values()))
-    jukebox = list(
-        map(lambda s: s.playlist.get_playlist_from_now(), api.serverinfo.values())
-    )
-    timelimits = list(map(lambda s: s.timelimit, api.serverinfo.values()))
-    serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
-    return serverinfo, curtimestr, timeleft
+    timeleft = ttl.seconds
 
-    """
-    api.get_mapinfo()
-    # input seems ok, try to find next time map is played
-    deltas = list(map(lambda s: s.find_next_play(search_map_id),
-                      api.serverinfo.values()))
-    # remove all None from servers which do not have map
-    deltas = [i for i in deltas if i[0]]
+    response = {"servers": [], "comptimeLeft": timeleft}
 
-    """
+    mdb = MiscDBOperators(config, secrets)
+    fins = build_fin_json()
+
+    for name, val in api.serverinfo.items():
+        tmpdict = {}
+        tmpdict["serverNumber"] = val.servernum
+        tmpdict["serverDifficulty"] = val.difficulty
+        tmpdict["maps"] = []
+        for m in val.playlist.get_playlist_from_now():
+            mapdict = {
+                "number": m,
+                "author": mdb.get_map_author(m),
+                "finished": (m in fins["mapids"]),
+            }
+            tmpdict["maps"].append(mapdict)
+        tmpdict["timeLimit"] = val.timelimit
+        tmpdict["timeLeft"] = val.timeplayed
+        response["servers"].append(tmpdict)
+    print(response)
+    return response
 
 
 @app.route("/register", methods=["POST"])
 def register_user():
-    # curl -d "reg_usr=peter&reg_mail=peter&reg_pwd=peter"
+    # curl -d "user=peter&mail=peter&pwd=peter"
     # -X POST http://localhost:5000/register
     udm = UserDataMngr(config, secrets)
     cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
@@ -108,7 +78,8 @@ def register_user():
 
 @app.route("/login", methods=["POST"])
 def login_user_api():
-    # curl -d '{"login_usr":"asd", "login_pwd":"asd"}'
+    # curl -d '{"user":"asd",
+    # "pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
     assert flask.request.json["user"]
     assert flask.request.json["pwd"]
@@ -154,31 +125,17 @@ def json_serverdata_provider():
     str
         Data in JSON format as a string
     """
-    serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
-    jsonifythis = {}
-    for elem in serverinfo:
-        if "serverinfo" in jsonifythis:
-            jsonifythis["serverinfo"].append({elem[0]: elem[1:]})
-        else:
-            jsonifythis["serverinfo"] = [{elem[0]: elem[1:]}]
-    jsonifythis["timeleft"] = timeleft
-    jsonifythis["curtimestr"] = curtimestr
-    return json.dumps(jsonifythis)
+    serverinfo = get_pagedata()
+    return json.dumps(serverinfo)
 
 
-@app.route("/fin.json", methods=["POST"])
-@jwt_required()
+@app.route("/fin.json")
+@jwt_required(optional=True)
 def build_fin_json():
-    # XOR only one parameter is set
-    assert (flask.request.json["tm_login"] and not flask.request.json["username"]) or (
-        flask.request.json["username"] and not flask.request.json["tm_login"]
-    )
-    if flask.request.json["username"]:
-        um = UserDataMngr(config, secrets)
-        tm_login = um.get_tm20_login(flask.request.json["username"])
-    else:
-        tm_login = flask.request.json["tm_login"]
-
+    if not current_user:  # User is not logged in
+        return {"finishes": 0, "mapids": []}
+    um = UserDataMngr(config, secrets)
+    tm_login = um.get_tm20_login(current_user.get_id())
     try:
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
@@ -188,6 +145,54 @@ def build_fin_json():
             return {"finishes": 0, "mapids": []}
     except Exception:
         return {"finishes": 0, "mapids": []}
+
+
+@app.route("/spreadsheet")
+@jwt_required(optional=True)
+def spreadsheet_full():
+    # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
+    # http://localhost:5005/spreadsheet
+    um = UserDataMngr(config, secrets)
+    # Check if user is logged in.
+    if not current_user:  # User not logged in
+        # Only provide base data
+        sheet = um.get_spreadsheet_all(None)
+    else:  # User logged in
+        # Add user specific data to the spreadsheet
+        userid = current_user.get_id()
+        sheet = um.get_spreadsheet_all(userid)
+        finned = build_fin_json()
+        for fin in finned["mapids"]:
+            sheet[fin]["finished"] = True
+
+    # add next play times for each map, regardless of login state
+    for mapid, dataset in sheet.items():
+        # api.get_mapinfo()
+        # input seems ok, try to find next time map is played
+        deltas = list(map(lambda s: s.find_next_play(mapid), api.serverinfo.values()))
+        # remove all None from servers which do not have map
+        deltas = [i for i in deltas if i[0]]
+        # check if we need to find the earliest play, if map is on multiple servers
+        earliest = deltas[0]
+        if len(deltas) > 1:
+            for d in deltas[1:]:
+                if int(earliest[0][0]) > int(d[0][0]):  # this server has lower hours
+                    if int(earliest[0][1]) > int(
+                        d[0][1]
+                    ):  # this server has lower minutes
+                        earliest = d
+        dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+        dataset["server"] = earliest[1]
+    if not current_user:
+        # return with HTTP 401 to indicate no auth
+        return json.dumps(sheet), 401
+    else:
+        return json.dumps(sheet), 200
+
+
+@app.route("/")
+def ind():
+    return "nothing to see here, go awaiii"
 
 
 @app.route("/who_am_i", methods=["GET"])
@@ -266,7 +271,7 @@ if config["log_visits"]:
     # Enable logging of visitors to dedicated file. More comfortable than using system
     # log to count visitors.
     # Counting with "cat visits.log | wc -l"
-    f = open(os.path.join(os.path.dirname(__file__), config["visits_logfile"]), "a+")
+    f = open(config["visits_logfile"], "a+")
     f.close()
 
 # Set up JWT
