@@ -10,7 +10,7 @@
 
 Kackiest Kacky 7 - Server 1:
   server_number: 1
-  difficulty: easy
+  difficulty: white
   timelimit: 15
   server_login: sky_event
   maps:
@@ -52,7 +52,7 @@ Kackiest Kacky 7 - Server 1:
 
 Kackiest Kacky 7 - Server 2:
   server_number: 2
-  difficulty: medium
+  difficulty: blue
   timelimit: 15
   server_login: sky_event2
   maps:
@@ -84,7 +84,7 @@ Kackiest Kacky 7 - Server 2:
 
 Kackiest Kacky 7 - Server 3:
   server_number: 3
-  difficulty: hard
+  difficulty: black
   timelimit: 20
   server_login: sky_event3
   maps:
