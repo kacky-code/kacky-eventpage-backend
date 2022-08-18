@@ -100,6 +100,23 @@ def login_user_api():
     return flask_restful.http_status_message(401)
 
 
+@app.route("/usermgnt", methods=["POST"])
+@jwt_required()
+def usermanagement():
+    um = UserDataMngr(config, secrets)
+    if flask.request.json.get("tmnf", None):
+        um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
+    if flask.request.json.get("tm20", None):
+        um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
+    if flask.request.json.get("discord", None):
+        um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
+    if flask.request.json.get("pwd", None):
+        um.set_password(current_user.get_id(), flask.request.json["pwd"])
+    if flask.request.json.get("mail", None):
+        um.set_mail(current_user.get_id(), flask.request.json["mail"])
+    return flask_restful.http_status_message(200)
+
+
 @app.route("/logout")
 @jwt_required()
 def logout_and_redirect_index():
