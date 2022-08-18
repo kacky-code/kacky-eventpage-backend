@@ -58,4 +58,5 @@ class PlaylistHandler:
 
     def get_playlist_from_now(self):
         current_pos = self.playlist.index(self.curmap)
-        return self.playlist[current_pos:] + self.playlist[:current_pos]
+        # This only needs 4 maps, current one and three for preview
+        return (self.playlist[current_pos:] + self.playlist[: current_pos + 4])[:4]

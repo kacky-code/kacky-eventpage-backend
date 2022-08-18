@@ -18,6 +18,9 @@ class ServerInfo:
             with open(Path(__file__).parents[3] / "servers.yaml") as mf:
                 server_conf = yaml.load(mf, Loader=yaml.FullLoader)
             self.playlist = PlaylistHandler(config, server_conf[name.string]["maps"])
+            self.servernum = server_conf[name.string]["server_number"]
+            self.difficulty = server_conf[name.string]["difficulty"]
+            self.serverlogin = server_conf[name.string].get("serverlogin", None)
         else:
             self.playlist = PlaylistHandler(config)
 
