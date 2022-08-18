@@ -16,6 +16,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 
+from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
 from kacky_eventpage_backend.usermanagement.token_blacklist import TokenBlacklist
 from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
@@ -26,26 +27,8 @@ jwt = JWTManager(app)
 config = {}
 
 
-def get_pagedata(rawservernum=False):
-    """
-    Loads and prepares data shown on index page
-
-    # Get page data
-    serverinfo, curtimestr, timeleft = get_pagedata()
-
-    Parameters
-    ----------
-    rawservernum:
-        Toggle on server ID format
-
-    Returns
-    -------
-    Tuple[list, list, list]
-        Information for the index page.
-    """
+def get_pagedata():
     curtime = datetime.datetime.now()
-    curtimestr = f"{curtime.hour:0>2d}:{curtime.minute:0>2d}"
-    curmaps = list(map(lambda s: s.cur_map, api.serverinfo.values()))
     if config["testing_mode"]:
         ttl = (
             datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
@@ -53,43 +36,30 @@ def get_pagedata(rawservernum=False):
         )
     else:
         ttl = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M") - curtime
-    if ttl.days < 0 or ttl.seconds < 0:
-        timeleft = (
-            abs(ttl.days),
-            abs(int(ttl.seconds // 3600)),
-            abs(int(ttl.seconds // 60) % 60),
-            -1,
-        )
-    else:
-        timeleft = (
-            abs(ttl.days),
-            abs(int(ttl.seconds // 3600)),
-            abs(int(ttl.seconds // 60) % 60),
-            1,
-        )
-    if rawservernum:
-        servernames = list(
-            map(lambda s: s.name.string.split(" - ")[1], api.serverinfo.values())
-        )
-    else:
-        servernames = list(map(lambda s: s.name.html, api.serverinfo.values()))
-    timeplayed = list(map(lambda s: s.timeplayed, api.serverinfo.values()))
-    jukebox = list(
-        map(lambda s: s.playlist.get_playlist_from_now(), api.serverinfo.values())
-    )
-    timelimits = list(map(lambda s: s.timelimit, api.serverinfo.values()))
-    serverinfo = list(zip(servernames, curmaps, timeplayed, jukebox, timelimits))
-    return serverinfo, curtimestr, timeleft
+    timeleft = ttl.seconds
 
-    """
-    api.get_mapinfo()
-    # input seems ok, try to find next time map is played
-    deltas = list(map(lambda s: s.find_next_play(search_map_id),
-                      api.serverinfo.values()))
-    # remove all None from servers which do not have map
-    deltas = [i for i in deltas if i[0]]
+    response = {"servers": [], "comptimeLeft": timeleft}
 
-    """
+    mdb = MiscDBOperators(config, secrets)
+    fins = build_fin_json()
+
+    for name, val in api.serverinfo.items():
+        tmpdict = {}
+        tmpdict["serverNumber"] = val.servernum
+        tmpdict["serverDifficulty"] = val.difficulty
+        tmpdict["maps"] = []
+        for m in val.playlist.get_playlist_from_now():
+            mapdict = {
+                "number": m,
+                "author": mdb.get_map_author(m),
+                "finished": (m in fins["mapids"]),
+            }
+            tmpdict["maps"].append(mapdict)
+        tmpdict["timeLimit"] = val.timelimit
+        tmpdict["timeLeft"] = val.timeplayed
+        response["servers"].append(tmpdict)
+    print(response)
+    return response
 
 
 @app.route("/register", methods=["POST"])
@@ -155,21 +125,15 @@ def json_serverdata_provider():
     str
         Data in JSON format as a string
     """
-    serverinfo, curtimestr, timeleft = get_pagedata(rawservernum=True)
-    jsonifythis = {}
-    for elem in serverinfo:
-        if "serverinfo" in jsonifythis:
-            jsonifythis["serverinfo"].append({elem[0]: elem[1:]})
-        else:
-            jsonifythis["serverinfo"] = [{elem[0]: elem[1:]}]
-    jsonifythis["timeleft"] = timeleft
-    jsonifythis["curtimestr"] = curtimestr
-    return json.dumps(jsonifythis)
+    serverinfo = get_pagedata()
+    return json.dumps(serverinfo)
 
 
 @app.route("/fin.json")
-@jwt_required()
+@jwt_required(optional=True)
 def build_fin_json():
+    if not current_user:  # User is not logged in
+        return {"finishes": 0, "mapids": []}
     um = UserDataMngr(config, secrets)
     tm_login = um.get_tm20_login(current_user.get_id())
     try:
