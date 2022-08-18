@@ -47,12 +47,14 @@ def get_pagedata():
         tmpdict = {}
         tmpdict["serverNumber"] = val.servernum
         tmpdict["serverDifficulty"] = val.difficulty
-        tmpdict["maps"] = {}
+        tmpdict["maps"] = []
         for m in val.playlist.get_playlist_from_now():
-            tmpdict["maps"][m] = {
+            mapdict = {
+                "number": m,
                 "author": mdb.get_map_author(m),
                 "finished": (m in fins["mapids"]),
             }
+            tmpdict["maps"].append(mapdict)
         tmpdict["timeLimit"] = val.timelimit
         tmpdict["timeLeft"] = val.timeplayed
         response["servers"].append(tmpdict)
