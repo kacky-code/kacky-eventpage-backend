@@ -1,55 +1,13 @@
-import hashlib
-import logging
+from typing import Union
 
-import mariadb
+from kacky_eventpage_backend.db_ops.db_base import DBConnection
 
 
-class UserDataMngr:
+class UserDataMngr(DBConnection):
     """
     This class handles all data in the database, updating and reading. Login stuff is
     handled in usermanagement.user_session_handler.User.
     """
-
-    def __init__(self, config, secrets):
-        """
-        Sets up obj, creates a database connection.
-        """
-        self.config = config
-        self.logger = logging.getLogger(self.config["logger_name"])
-
-        # set up database connection to manage projects
-        try:
-            self.connection = mariadb.connect(
-                host=self.config["dbhost"],
-                port=self.config["dbport"],
-                user=secrets["dbuser"],
-                passwd=secrets["dbpwd"],
-                database=self.config["dbname"],
-            )
-        except mariadb.Error as e:
-            self.logger.error(f"Connecting to database failed! {e}")
-            raise e
-        self.cursor = self.connection.cursor()
-
-        self.hashgen = hashlib.sha256
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Exit hook, closes DB connection if object is destroyed
-
-        Parameters
-        ----------
-        exc_type
-        exc_val
-        exc_tb
-        """
-        self.connection.close()
-
-    def __enter__(self):
-        """
-        Required for "with" instantiation to work correctly
-        """
-        return self
 
     def add_user(self, user, cryptpwd, cryptmail) -> bool:
         """
@@ -69,24 +27,24 @@ class UserDataMngr:
         bool
             True if account was created, False if creation failed
         """
-        self.logger.info(f"Trying to create user {user}.")
+        self._logger.info(f"Trying to create user {user}.")
         # Check if user already exists
         query = "SELECT username FROM kack_users WHERE username = ?;"
-        self.cursor.execute(query, (user,))
-        if not self.cursor.fetchall():
+        self._cursor.execute(query, (user,))
+        if not self._cursor.fetchall():
             self.connection.commit()
-            self.logger.info(f"User {user} does not yet exist. Creating.")
+            self._logger.info(f"User {user} does not yet exist. Creating.")
             query = "INSERT INTO kack_users(username, password, mail) VALUES (?, ?, ?);"
-            self.cursor.execute(query, (user, cryptpwd, cryptmail))
+            self._cursor.execute(query, (user, cryptpwd, cryptmail))
             self.connection.commit()
             return True
         else:
-            self.logger.error(f"User {user} already exists! Aborting user creation!")
+            self._logger.error(f"User {user} already exists! Aborting user creation!")
             return False
 
     def set_discord_id(self, userid: int, new_discord_id: str):
         query = "UPDATE `user_fields` SET `discord_handle` = ? WHERE `id` = ?"
-        self.cursor.execute(query, (new_discord_id, userid))
+        self._cursor.execute(query, (new_discord_id, userid))
         self.connection.commit()
 
     def get_discord_id(self, userid: str) -> str:
@@ -104,8 +62,19 @@ class UserDataMngr:
             Discord ID
         """
         query = "SELECT `discord_handle` FROM `user_fields` WHERE `id` = ?;"
-        self.cursor.execute(query, (userid,))
-        return self.cursor.fetchone()[0]
+        self._cursor.execute(query, (userid,))
+        return self._cursor.fetchone()[0]
+
+    def set_discord_alarms(self, userid: int, alarms):
+        query = "UPDATE user_fields SET alarms = ? WHERE id = ?;"
+        alarms_str = ";".join([str(a) for a in alarms])
+        self._cursor.execute(query, (alarms_str, userid))
+        self.connection.commit()
+
+    def get_discord_alarms(self, userid: int):
+        query = "SELECT alarms from user_fields WHERE id = ?;"
+        self._cursor.execute(query, (userid,))
+        return [int(map) for map in self._cursor.fetchone()[0].split(";")]
 
     def set_tm20_login(self, user_id: int, tmid: str):
         """
@@ -119,7 +88,7 @@ class UserDataMngr:
             TM account name
         """
         query = "UPDATE `user_fields` SET `tm20_login` = ? WHERE `id` = ?"
-        self.cursor.execute(query, (tmid, user_id))
+        self._cursor.execute(query, (tmid, user_id))
         self.connection.commit()
 
     def get_tm20_login(self, user_id: int) -> str:
@@ -139,8 +108,8 @@ class UserDataMngr:
 
         """
         query = "SELECT `tm20_login` FROM `user_fields` WHERE `id` = ?;"
-        self.cursor.execute(query, (user_id,))
-        return self.cursor.fetchone()[0]
+        self._cursor.execute(query, (user_id,))
+        return self._cursor.fetchone()[0]
 
     def set_tmnf_login(self, user_id: int, tmid: str):
         """
@@ -154,7 +123,7 @@ class UserDataMngr:
             TM account name
         """
         query = "UPDATE `user_fields` SET `tmnf_login` = ? WHERE `id` = ?"
-        self.cursor.execute(query, (tmid, user_id))
+        self._cursor.execute(query, (tmid, user_id))
         self.connection.commit()
 
     def get_tmnf_login(self, user_id: int) -> str:
@@ -172,21 +141,71 @@ class UserDataMngr:
             TM login for specified user
         """
         query = "SELECT `tmnf_login` FROM `user_fields` WHERE `id` = ?;"
-        self.cursor.execute(query, (user_id,))
-        return self.cursor.fetchone()[0]
+        self._cursor.execute(query, (user_id,))
+        return self._cursor.fetchone()[0]
 
-    def get_spreadsheet_all(self, userid: int):
-        query = "SELECT * FROM spreadsheet WHERE user_id = ?;"
-        self.cursor.execute(query, (userid,))
-        return self.cursor.fetchall()
+    def get_spreadsheet_all(self, userid: Union[str, None]):
+        default_line = {
+            "map_diff": 0,
+            "map_pb": "",
+            "map_rank": None,
+            "clip": "",
+            "alarm": False,
+            "finished": False,
+        }
+        if userid:
+            query = """
+                SELECT
+                    spreadsheet.map_diff,
+                    spreadsheet.map_pb,
+                    spreadsheet.map_rank,
+                    spreadsheet.clip,
+                    maps.kacky_id
+                FROM spreadsheet
+                LEFT JOIN maps ON spreadsheet.map_id = maps.id
+                WHERE user_id = ?;
+            """
+            self._cursor.execute(query, (userid,))
+            # get column names to build a dictionary as result
+            columns = [col[0] for col in self._cursor.description]
+            qres = self._cursor.fetchall()
+        else:
+            qres = {
+                m: {}
+                for m in range(self._config["min_mapid"], self._config["max_mapid"] - 1)
+            }
+            return qres
+        # make a dict from the result set
+        sdict = [dict(zip(columns, row)) for row in qres]
+        # make kacky_ids the key of a dict containing all the data (do this in
+        # an extra step to use `kacky_id` key from the dict instead of some
+        # hardcoded array position. Slightly more work, but should be fine
+        sdict = {row["kacky_id"]: row for row in sdict}
+        # STUPID CODE STARTS HERE
+        # remove kacky_id from data, as it's the key now
+        # also add missing keys with default values
+        for map in sdict.values():
+            del map["kacky_id"]
+            if len(map) < len(default_line):
+                for key in default_line:
+                    if key not in map:
+                        map[key] = default_line[key]
+        # add missing maps which do not have any data stored
+        for missmap in range(self._config["min_mapid"], self._config["max_mapid"] + 1):
+            if missmap not in sdict.keys():
+                sdict.setdefault(missmap, default_line.copy())
+        discord_alarms = self.get_discord_alarms(userid)
+        for alarm in discord_alarms:
+            sdict[alarm]["alarm"] = True
+        return sdict
 
     def get_spreadsheet_line(self, userid: int, mapid: int):
         query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
-        self.cursor.execute(query, (userid, mapid))
-        return self.cursor.fetchall()
+        self._cursor.execute(query, (userid, mapid))
+        return self._cursor.fetchall()
 
     def fetchone_and_only_one(self):
-        qres = self.cursor.fetchall()
+        qres = self._cursor.fetchall()
         if len(qres) > 1:
             raise AssertionError("Query returned more than one result set!")
         else:
