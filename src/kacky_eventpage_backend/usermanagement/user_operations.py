@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from typing import Union
 
 import mariadb
 
@@ -186,7 +187,7 @@ class UserDataMngr:
         self.cursor.execute(query, (user_id,))
         return self.cursor.fetchone()[0]
 
-    def get_spreadsheet_all(self, userid: str):
+    def get_spreadsheet_all(self, userid: Union[str, None]):
         default_line = {
             "map_diff": 0,
             "map_pb": "",
@@ -195,21 +196,28 @@ class UserDataMngr:
             "alarm": False,
             "finished": False,
         }
-        query = """
-        SELECT
-            spreadsheet.map_diff,
-            spreadsheet.map_pb,
-            spreadsheet.map_rank,
-            spreadsheet.clip,
-            maps.kacky_id
-        FROM spreadsheet
-        LEFT JOIN maps ON spreadsheet.map_id = maps.id
-        WHERE user_id = ?;
-        """
-        self.cursor.execute(query, (userid,))
-        # get column names to build a dictionary as result
-        columns = [col[0] for col in self.cursor.description]
-        qres = self.cursor.fetchall()
+        if userid:
+            query = """
+                SELECT
+                    spreadsheet.map_diff,
+                    spreadsheet.map_pb,
+                    spreadsheet.map_rank,
+                    spreadsheet.clip,
+                    maps.kacky_id
+                FROM spreadsheet
+                LEFT JOIN maps ON spreadsheet.map_id = maps.id
+                WHERE user_id = ?;
+            """
+            self.cursor.execute(query, (userid,))
+            # get column names to build a dictionary as result
+            columns = [col[0] for col in self.cursor.description]
+            qres = self.cursor.fetchall()
+        else:
+            qres = {
+                m: {}
+                for m in range(self.config["min_mapid"], self.config["max_mapid"] - 1)
+            }
+            return qres
         # make a dict from the result set
         sdict = [dict(zip(columns, row)) for row in qres]
         # make kacky_ids the key of a dict containing all the data (do this in
