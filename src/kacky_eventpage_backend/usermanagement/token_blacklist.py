@@ -9,7 +9,7 @@ class TokenBlacklist(DBConnection):
         self._cursor.execute(
             query, (jti, datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
         )
-        self.connection.commit()
+        self._connection.commit()
 
     def check_token(self, jti):
         query = "SELECT COUNT(1) FROM token_blacklist WHERE jti = ?"
