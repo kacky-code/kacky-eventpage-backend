@@ -65,7 +65,7 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid,))
         return self._cursor.fetchone()[0]
 
-    def toggle_discord_alarm(self, userid: int, alarm: int):
+    def toggle_discord_alarm(self, userid: int, mapid: int):
         # get currently set alarms
         query = "SELECT alarms FROM user_fields WHERE id = ?"
         self._cursor.execute(query, (userid,))
@@ -76,10 +76,10 @@ class UserDataMngr(DBConnection):
         alarms = dict.fromkeys([int(a) for a in alarms.split(";")])
         try:
             # Remove alarm if exists
-            del alarms[alarm]
+            del alarms[mapid]
         except KeyError:
             # Alarm not in list, add it
-            alarms[alarm] = None
+            alarms[mapid] = None
 
         # make alarms a string again
         alarmstr = ";".join(str(a) for a in alarms.keys())
@@ -221,9 +221,32 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid, mapid))
         return self._cursor.fetchall()
 
-    def set_map_clip(self, userid: int, clip: str):
-        query = "UPDATE spreadsheet SET clip = ? WHERE user_id = ?;"
-        self._cursor.execute(query, (clip, userid))
+    def set_map_clip(self, userid: int, mapid: int, clip: str):
+        query = """
+            INSERT INTO spreadsheet(user_id, map_id, clip)
+            VALUES (
+                        ?,
+                        (SELECT maps.id FROM maps WHERE maps.kacky_id = ?),
+                        ?
+                    )
+            ON DUPLICATE KEY
+            UPDATE spreadsheet.clip = ?;
+        """
+        self._cursor.execute(query, (userid, mapid, clip, clip))
+        self._connection.commit()
+
+    def set_map_difficulty(self, userid: int, mapid: int, diff: int):
+        query = """
+                    INSERT INTO spreadsheet(user_id, map_id, map_diff)
+                    VALUES (
+                                ?,
+                                (SELECT maps.id FROM maps WHERE maps.kacky_id = ?),
+                                ?
+                            )
+                    ON DUPLICATE KEY
+                    UPDATE spreadsheet.map_diff = ?;
+                """
+        self._cursor.execute(query, (userid, mapid, diff, diff))
         self._connection.commit()
 
     def fetchone_and_only_one(self):

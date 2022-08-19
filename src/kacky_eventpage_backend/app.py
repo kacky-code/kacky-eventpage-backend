@@ -147,7 +147,43 @@ def build_fin_json():
         return {"finishes": 0, "mapids": []}
 
 
-@app.route("/spreadsheet")
+@app.route("/spreadsheet", methods=["POST"])
+@jwt_required()
+def spreadsheet_update():
+    # mapid is required, represents main key for updating stuff
+    assert flask.request.json["mapid"]
+
+    um = UserDataMngr(config, secrets)
+    if flask.request.json.get("diff", None):
+        if not isinstance(flask.request.json["diff"], int):
+            logging.error(
+                f"Bad update of map difficulty - userid {current_user.get_id()}"
+            )
+            return flask_restful.http_status_message(400), 400
+        um.set_map_difficulty(
+            current_user.get_id(),
+            flask.request.json["mapid"],
+            flask.request.json["diff"],
+        )
+    if flask.request.json.get("clip", None):
+        if not isinstance(flask.request.json["diff"], str):
+            logging.error(f"Bad update of map clip - userid {current_user.get_id()}")
+            return flask_restful.http_status_message(400), 400
+        um.set_map_clip(
+            current_user.get_id(),
+            flask.request.json["mapid"],
+            flask.request.json["clip"],
+        )
+    if flask.request.json.get("alarm", None):
+        if not isinstance(flask.request.json["alarm"], int):
+            logging.error(f"Bad update of map alarm - userid {current_user.get_id()}")
+            return flask_restful.http_status_message(400), 400
+        um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
+
+    return flask_restful.http_status_message(200)
+
+
+@app.route("/spreadsheet", methods=["GET"])
 @jwt_required(optional=True)
 def spreadsheet_full():
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
