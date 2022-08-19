@@ -159,7 +159,7 @@ def spreadsheet_update():
 
     if flask.request.json.get("diff", None):
         # lazy eval should make sure this is an int in or case
-        if is_valid(flask.request.json["diff"], int, vrange=(0, 6)):
+        if is_invalid(flask.request.json["diff"], int, vrange=(0, 6)):
             return return_bad_value("map difficulty")
         um.set_map_difficulty(
             current_user.get_id(),
@@ -167,7 +167,7 @@ def spreadsheet_update():
             flask.request.json["diff"],
         )
     if flask.request.json.get("clip", None):
-        if is_valid(flask.request.json["clip"], str, length=150):
+        if is_invalid(flask.request.json["clip"], str, length=150):
             return return_bad_value("map alarm")
         um.set_map_clip(
             current_user.get_id(),
@@ -176,7 +176,7 @@ def spreadsheet_update():
         )
     if flask.request.json.get("alarm", None):
         # lazy eval should make sure this is an int in or case
-        if is_valid(flask.request.json["alarm"], int, vrange=MAPIDS):
+        if is_invalid(flask.request.json["alarm"], int, vrange=MAPIDS):
             return return_bad_value("discord alarm toggle")
         um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
 
@@ -263,7 +263,9 @@ def return_bad_value(error_param: str):
     return flask_restful.http_status_message(400), 400
 
 
-def is_valid(value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None):
+def is_invalid(
+    value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None
+):
     """
     Checks if value is valid by type and value.
 
@@ -281,19 +283,19 @@ def is_valid(value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int =
     Returns
     -------
     bool
-        True if value is valid according to parameters
+        True if value is invalid according to parameters
     """
     if not isinstance(value, dtype):
-        return False
+        return True
 
     if length and dtype is str:
         if len(value) <= length:
-            return False
+            return True
 
     if vrange and not (vrange[0] <= value <= vrange[1]):
-        return False
+        return True
 
-    return True
+    return False
 
 
 #                    _
