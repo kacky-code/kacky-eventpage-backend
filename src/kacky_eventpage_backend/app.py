@@ -159,7 +159,7 @@ def spreadsheet_update():
 
     if flask.request.json.get("diff", None):
         # lazy eval should make sure this is an int in or case
-        if check_value(flask.request.json["diff"], int, vrange=(0, 6)):
+        if is_valid(flask.request.json["diff"], int, vrange=(0, 6)):
             return return_bad_value("map difficulty")
         um.set_map_difficulty(
             current_user.get_id(),
@@ -167,7 +167,7 @@ def spreadsheet_update():
             flask.request.json["diff"],
         )
     if flask.request.json.get("clip", None):
-        if check_value(flask.request.json["clip"], str, length=150):
+        if is_valid(flask.request.json["clip"], str, length=150):
             return return_bad_value("map alarm")
         um.set_map_clip(
             current_user.get_id(),
@@ -176,7 +176,7 @@ def spreadsheet_update():
         )
     if flask.request.json.get("alarm", None):
         # lazy eval should make sure this is an int in or case
-        if check_value(flask.request.json["alarm"], int, vrange=MAPIDS):
+        if is_valid(flask.request.json["alarm"], int, vrange=MAPIDS):
             return return_bad_value("discord alarm toggle")
         um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
 
@@ -263,14 +263,31 @@ def return_bad_value(error_param: str):
     return flask_restful.http_status_message(400), 400
 
 
-def check_value(
-    value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None
-):
+def is_valid(value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None):
+    """
+    Checks if value is valid by type and value.
+
+    Parameters
+    ----------
+    value: Any
+        Value to check
+    dtype: Any
+        Type value shall have
+    vrange: Tuple[int, int]
+        Range in which value is valid (e.g. numerical range)
+    length: int
+        Valid length of value (e.g. for strings)
+
+    Returns
+    -------
+    bool
+        True if value is valid according to parameters
+    """
     if not isinstance(value, dtype):
         return False
 
     if length and dtype is str:
-        if len(value) < length:
+        if len(value) <= length:
             return False
 
     if vrange and not (vrange[0] <= value <= vrange[1]):
