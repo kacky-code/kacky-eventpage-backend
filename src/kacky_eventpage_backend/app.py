@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any, Tuple
 
 import flask
 import flask_restful
@@ -151,33 +152,32 @@ def build_fin_json():
 @jwt_required()
 def spreadsheet_update():
     # mapid is required, represents main key for updating stuff
-    assert flask.request.json["mapid"]
+    assert isinstance(flask.request.json["mapid"], int)
+    assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
 
     um = UserDataMngr(config, secrets)
+
     if flask.request.json.get("diff", None):
-        if not isinstance(flask.request.json["diff"], int):
-            logging.error(
-                f"Bad update of map difficulty - userid {current_user.get_id()}"
-            )
-            return flask_restful.http_status_message(400), 400
+        # lazy eval should make sure this is an int in or case
+        if check_value(flask.request.json["diff"], int, vrange=(0, 6)):
+            return return_bad_value("map difficulty")
         um.set_map_difficulty(
             current_user.get_id(),
             flask.request.json["mapid"],
             flask.request.json["diff"],
         )
     if flask.request.json.get("clip", None):
-        if not isinstance(flask.request.json["diff"], str):
-            logging.error(f"Bad update of map clip - userid {current_user.get_id()}")
-            return flask_restful.http_status_message(400), 400
+        if check_value(flask.request.json["clip"], str, length=150):
+            return return_bad_value("map alarm")
         um.set_map_clip(
             current_user.get_id(),
             flask.request.json["mapid"],
             flask.request.json["clip"],
         )
     if flask.request.json.get("alarm", None):
-        if not isinstance(flask.request.json["alarm"], int):
-            logging.error(f"Bad update of map alarm - userid {current_user.get_id()}")
-            return flask_restful.http_status_message(400), 400
+        # lazy eval should make sure this is an int in or case
+        if check_value(flask.request.json["alarm"], int, vrange=MAPIDS):
+            return return_bad_value("discord alarm toggle")
         um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
 
     return flask_restful.http_status_message(200)
@@ -252,6 +252,31 @@ def user_identity_lookup(user):
 def user_lookup_callback(_jwt_header, jwt_data):
     username = jwt_data["sub"]
     return User(username, config, secrets).exists()
+
+
+@jwt_required()
+def return_bad_value(error_param: str):
+    logger.error(
+        f"Bad value for {error_param} - userid {current_user.get_id()} "
+        f"- payload {flask.request.json}"
+    )
+    return flask_restful.http_status_message(400), 400
+
+
+def check_value(
+    value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None
+):
+    if not isinstance(value, dtype):
+        return False
+
+    if length and dtype is str:
+        if len(value) < length:
+            return False
+
+    if vrange and not (vrange[0] <= value <= vrange[1]):
+        return False
+
+    return True
 
 
 #                    _
