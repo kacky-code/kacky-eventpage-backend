@@ -36,14 +36,14 @@ class KackyAPIHandler:
                 self._update_server_info()
             return self._serverinfo
         if item == "leaderboard":
-            if self._cache_update_required("serverinfo", 600):
+            if self._cache_update_required("leaderboard", 600):
                 self._update_leaderboard()
             return self._leaderboard
 
     def _cache_update_required(self, field: str, cachetime: int):
         try:
             # check if last update of `field` is less than `cachetime` seconds old
-            if self._last_update[field] < dt.now() + td(seconds=cachetime):
+            if self._last_update[field] > dt.now() - td(seconds=cachetime):
                 self.logger.debug(f"'{field}' still valid in cache")
                 return 0
             else:

@@ -24,7 +24,7 @@ class ServerInfo:
         else:
             self.playlist = PlaylistHandler(config)
 
-        self.last_update = 0
+        self.last_update = datetime.datetime.fromtimestamp(0)
         self.timelimit = server_conf[name.string]["timelimit"]
 
     def update_info(self, new_info: dict):
@@ -45,11 +45,6 @@ class ServerInfo:
 
     @property
     def timeplayed(self):
-        if (
+        return (
             datetime.datetime.now() - self.last_update
-        ).total_seconds() + self.timeplayed_internal > self.timelimit * 60:
-            return -1
-        else:
-            return (
-                datetime.datetime.now() - self.last_update
-            ).total_seconds() + self.timeplayed_internal
+        ).total_seconds() + self.timeplayed_internal
