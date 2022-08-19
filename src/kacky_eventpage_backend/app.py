@@ -58,7 +58,6 @@ def get_pagedata():
         tmpdict["timeLimit"] = val.timelimit
         tmpdict["timeLeft"] = val.timeplayed
         response["servers"].append(tmpdict)
-    print(response)
     return response
 
 
@@ -104,16 +103,37 @@ def login_user_api():
 @jwt_required()
 def usermanagement():
     um = UserDataMngr(config, secrets)
+    error = ""
     if flask.request.json.get("tmnf", None):
-        um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
+        if not isinstance(flask.request.json["tmnf"], str):
+            error = "tmnf login"
+        else:
+            um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
     if flask.request.json.get("tm20", None):
-        um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
+        if not isinstance(flask.request.json["tm20"], str):
+            error = "tm20 login"
+        else:
+            um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
     if flask.request.json.get("discord", None):
-        um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
+        if not isinstance(flask.request.json["discord"], str):
+            error = "discord id"
+        else:
+            um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
     if flask.request.json.get("pwd", None):
-        um.set_password(current_user.get_id(), flask.request.json["pwd"])
+        if not isinstance(flask.request.json["pwd"], str):
+            error = "pwd"
+        else:
+            um.set_password(current_user.get_id(), flask.request.json["pwd"])
     if flask.request.json.get("mail", None):
-        um.set_mail(current_user.get_id(), flask.request.json["mail"])
+        if not isinstance(flask.request.json["mail"], str):
+            error = "mail"
+        else:
+            um.set_mail(current_user.get_id(), flask.request.json["mail"])
+
+    # if error is set, log it and return 400
+    if error != "":
+        logging.error(f"Bad update of {error} - userid {current_user.get_id()}")
+        return flask_restful.http_status_message(400), 400
     return flask_restful.http_status_message(200)
 
 
