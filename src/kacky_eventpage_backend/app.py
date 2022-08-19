@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any, Tuple
 
 import flask
 import flask_restful
@@ -164,7 +165,42 @@ def build_fin_json():
         return {"finishes": 0, "mapids": []}
 
 
-@app.route("/spreadsheet")
+@app.route("/spreadsheet", methods=["POST"])
+@jwt_required()
+def spreadsheet_update():
+    # mapid is required, represents main key for updating stuff
+    assert isinstance(flask.request.json["mapid"], int)
+    assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
+
+    um = UserDataMngr(config, secrets)
+
+    if flask.request.json.get("diff", None):
+        # lazy eval should make sure this is an int in or case
+        if is_invalid(flask.request.json["diff"], int, vrange=(0, 6)):
+            return return_bad_value("map difficulty")
+        um.set_map_difficulty(
+            current_user.get_id(),
+            flask.request.json["mapid"],
+            flask.request.json["diff"],
+        )
+    if flask.request.json.get("clip", None):
+        if is_invalid(flask.request.json["clip"], str, length=150):
+            return return_bad_value("map alarm")
+        um.set_map_clip(
+            current_user.get_id(),
+            flask.request.json["mapid"],
+            flask.request.json["clip"],
+        )
+    if flask.request.json.get("alarm", None):
+        # lazy eval should make sure this is an int in or case
+        if is_invalid(flask.request.json["alarm"], int, vrange=MAPIDS):
+            return return_bad_value("discord alarm toggle")
+        um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
+
+    return flask_restful.http_status_message(200)
+
+
+@app.route("/spreadsheet", methods=["GET"])
 @jwt_required(optional=True)
 def spreadsheet_full():
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
@@ -233,6 +269,50 @@ def user_identity_lookup(user):
 def user_lookup_callback(_jwt_header, jwt_data):
     username = jwt_data["sub"]
     return User(username, config, secrets).exists()
+
+
+@jwt_required()
+def return_bad_value(error_param: str):
+    logger.error(
+        f"Bad value for {error_param} - userid {current_user.get_id()} "
+        f"- payload {flask.request.json}"
+    )
+    return flask_restful.http_status_message(400), 400
+
+
+def is_invalid(
+    value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None
+):
+    """
+    Checks if value is valid by type and value.
+
+    Parameters
+    ----------
+    value: Any
+        Value to check
+    dtype: Any
+        Type value shall have
+    vrange: Tuple[int, int]
+        Range in which value is valid (e.g. numerical range)
+    length: int
+        Valid length of value (e.g. for strings)
+
+    Returns
+    -------
+    bool
+        True if value is invalid according to parameters
+    """
+    if not isinstance(value, dtype):
+        return True
+
+    if length and dtype is str:
+        if len(value) <= length:
+            return True
+
+    if vrange and not (vrange[0] <= value <= vrange[1]):
+        return True
+
+    return False
 
 
 #                    _
