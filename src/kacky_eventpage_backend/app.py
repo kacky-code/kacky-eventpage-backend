@@ -3,7 +3,9 @@ import hashlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
+from typing import Any, Tuple
 
 import flask
 import flask_restful
@@ -65,6 +67,10 @@ def get_pagedata():
 def register_user():
     # curl -d "user=peter&mail=peter&pwd=peter"
     # -X POST http://localhost:5000/register
+    assert not is_invalid(flask.request.json["user"], str, length=80)
+    assert not is_invalid(flask.request.json["pwd"], str, length=80)
+    assert not is_invalid(flask.request.json["mail"], str, length=80)
+
     udm = UserDataMngr(config, secrets)
     cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
     cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
@@ -80,8 +86,8 @@ def login_user_api():
     # curl -d '{"user":"asd",
     # "pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
-    assert flask.request.json["user"]
-    assert flask.request.json["pwd"]
+    assert not is_invalid(flask.request.json["user"], str, length=80)
+    assert not is_invalid(flask.request.json["pwd"], str, length=80)
     user = User(flask.request.json["user"], config, secrets).exists()
 
     if not user or not user.login(flask.request.json["pwd"]):
@@ -103,37 +109,26 @@ def login_user_api():
 @jwt_required()
 def usermanagement():
     um = UserDataMngr(config, secrets)
-    error = ""
     if flask.request.json.get("tmnf", None):
-        if not isinstance(flask.request.json["tmnf"], str):
-            error = "tmnf login"
-        else:
-            um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
+        if is_invalid(flask.request.json["tmnf"], str, length=50):
+            return return_bad_value("tmnf login")
+        um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
     if flask.request.json.get("tm20", None):
-        if not isinstance(flask.request.json["tm20"], str):
-            error = "tm20 login"
-        else:
-            um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
+        if is_invalid(flask.request.json["tm20"], str, length=50):
+            return return_bad_value("tm20 login")
+        um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
     if flask.request.json.get("discord", None):
-        if not isinstance(flask.request.json["discord"], str):
-            error = "discord id"
-        else:
-            um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
+        if is_invalid(flask.request.json["discord"], str, length=80):
+            return return_bad_value("discord handle")
+        um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
     if flask.request.json.get("pwd", None):
-        if not isinstance(flask.request.json["pwd"], str):
-            error = "pwd"
-        else:
-            um.set_password(current_user.get_id(), flask.request.json["pwd"])
+        if is_invalid(flask.request.json["pwd"], str, length=80):
+            return return_bad_value("pwd")
+        um.set_password(current_user.get_id(), flask.request.json["pwd"])
     if flask.request.json.get("mail", None):
-        if not isinstance(flask.request.json["mail"], str):
-            error = "mail"
-        else:
-            um.set_mail(current_user.get_id(), flask.request.json["mail"])
-
-    # if error is set, log it and return 400
-    if error != "":
-        logging.error(f"Bad update of {error} - userid {current_user.get_id()}")
-        return flask_restful.http_status_message(400), 400
+        if is_invalid(flask.request.json["mail"], str, length=80):
+            return return_bad_value("mail")
+        um.set_mail(current_user.get_id(), flask.request.json["mail"])
     return flask_restful.http_status_message(200)
 
 
@@ -148,6 +143,9 @@ def logout_and_redirect_index():
     flask.Response
         Redirect to the index page after logging out
     """
+    assert not is_invalid(get_jwt()["jti"], str, length=36)
+    pattern = re.compile(r"[0-9a-z]{8}-(?:[0-9a-z]{4}-){3}[0-9a-z]{12}")
+    assert pattern.match(get_jwt()["jti"])
     TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
     return flask_restful.http_status_message(200)
 
@@ -184,7 +182,42 @@ def build_fin_json():
         return {"finishes": 0, "mapids": []}
 
 
-@app.route("/spreadsheet")
+@app.route("/spreadsheet", methods=["POST"])
+@jwt_required()
+def spreadsheet_update():
+    # mapid is required, represents main key for updating stuff
+    assert isinstance(flask.request.json["mapid"], int)
+    assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
+
+    um = UserDataMngr(config, secrets)
+
+    if flask.request.json.get("diff", None):
+        # lazy eval should make sure this is an int in or case
+        if is_invalid(flask.request.json["diff"], int, vrange=(0, 6)):
+            return return_bad_value("map difficulty")
+        um.set_map_difficulty(
+            current_user.get_id(),
+            flask.request.json["mapid"],
+            flask.request.json["diff"],
+        )
+    if flask.request.json.get("clip", None):
+        if is_invalid(flask.request.json["clip"], str, length=150):
+            return return_bad_value("map alarm")
+        um.set_map_clip(
+            current_user.get_id(),
+            flask.request.json["mapid"],
+            flask.request.json["clip"],
+        )
+    if flask.request.json.get("alarm", None):
+        # lazy eval should make sure this is an int in or case
+        if is_invalid(flask.request.json["alarm"], int, vrange=MAPIDS):
+            return return_bad_value("discord alarm toggle")
+        um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
+
+    return flask_restful.http_status_message(200)
+
+
+@app.route("/spreadsheet", methods=["GET"])
 @jwt_required(optional=True)
 def spreadsheet_full():
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
@@ -253,6 +286,50 @@ def user_identity_lookup(user):
 def user_lookup_callback(_jwt_header, jwt_data):
     username = jwt_data["sub"]
     return User(username, config, secrets).exists()
+
+
+@jwt_required()
+def return_bad_value(error_param: str):
+    logger.error(
+        f"Bad value for {error_param} - userid {current_user.get_id()} "
+        f"- payload {flask.request.json}"
+    )
+    return flask_restful.http_status_message(400), 400
+
+
+def is_invalid(
+    value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None
+):
+    """
+    Checks if value is valid by type and value.
+
+    Parameters
+    ----------
+    value: Any
+        Value to check
+    dtype: Any
+        Type value shall have
+    vrange: Tuple[int, int]
+        Range in which value is valid (e.g. numerical range)
+    length: int
+        Valid length of value (e.g. for strings)
+
+    Returns
+    -------
+    bool
+        True if value is invalid according to parameters
+    """
+    if not isinstance(value, dtype):
+        return True
+
+    if length and dtype is str:
+        if len(value) <= length:
+            return True
+
+    if vrange and not (vrange[0] <= value <= vrange[1]):
+        return True
+
+    return False
 
 
 #                    _
