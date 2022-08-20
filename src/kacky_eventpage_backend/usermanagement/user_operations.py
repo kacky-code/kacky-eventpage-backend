@@ -32,11 +32,11 @@ class UserDataMngr(DBConnection):
         query = "SELECT username FROM kack_users WHERE username = ?;"
         self._cursor.execute(query, (user,))
         if not self._cursor.fetchall():
-            self.connection.commit()
+            self._connection.commit()
             self._logger.info(f"User {user} does not yet exist. Creating.")
             query = "INSERT INTO kack_users(username, password, mail) VALUES (?, ?, ?);"
             self._cursor.execute(query, (user, cryptpwd, cryptmail))
-            self.connection.commit()
+            self._connection.commit()
             return True
         else:
             self._logger.error(f"User {user} already exists! Aborting user creation!")
@@ -45,7 +45,7 @@ class UserDataMngr(DBConnection):
     def set_discord_id(self, userid: int, new_discord_id: str):
         query = "UPDATE `user_fields` SET `discord_handle` = ? WHERE `id` = ?"
         self._cursor.execute(query, (new_discord_id, userid))
-        self.connection.commit()
+        self._connection.commit()
 
     def get_discord_id(self, userid: str) -> str:
         """
@@ -65,11 +65,28 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid,))
         return self._cursor.fetchone()[0]
 
-    def set_discord_alarms(self, userid: int, alarms):
+    def toggle_discord_alarm(self, userid: int, mapid: int):
+        # get currently set alarms
+        query = "SELECT alarms FROM user_fields WHERE id = ?"
+        self._cursor.execute(query, (userid,))
+        alarms = self._cursor.fetchone()[0]
+
+        # toggle alarm in list. For this, make alarms string a list, remove
+        # or set the alarm and write it back to DB
+        alarms = dict.fromkeys([int(a) for a in alarms.split(";")])
+        try:
+            # Remove alarm if exists
+            del alarms[mapid]
+        except KeyError:
+            # Alarm not in list, add it
+            alarms[mapid] = None
+
+        # make alarms a string again
+        alarmstr = ";".join(str(a) for a in alarms.keys())
+
         query = "UPDATE user_fields SET alarms = ? WHERE id = ?;"
-        alarms_str = ";".join([str(a) for a in alarms])
-        self._cursor.execute(query, (alarms_str, userid))
-        self.connection.commit()
+        self._cursor.execute(query, (alarmstr, userid))
+        self._connection.commit()
 
     def get_discord_alarms(self, userid: int):
         query = "SELECT alarms from user_fields WHERE id = ?;"
@@ -89,7 +106,7 @@ class UserDataMngr(DBConnection):
         """
         query = "UPDATE `user_fields` SET `tm20_login` = ? WHERE `id` = ?"
         self._cursor.execute(query, (tmid, user_id))
-        self.connection.commit()
+        self._connection.commit()
 
     def get_tm20_login(self, user_id: int) -> str:
         """
@@ -124,7 +141,7 @@ class UserDataMngr(DBConnection):
         """
         query = "UPDATE `user_fields` SET `tmnf_login` = ? WHERE `id` = ?"
         self._cursor.execute(query, (tmid, user_id))
-        self.connection.commit()
+        self._connection.commit()
 
     def get_tmnf_login(self, user_id: int) -> str:
         """
@@ -203,6 +220,34 @@ class UserDataMngr(DBConnection):
         query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
         self._cursor.execute(query, (userid, mapid))
         return self._cursor.fetchall()
+
+    def set_map_clip(self, userid: int, mapid: int, clip: str):
+        query = """
+            INSERT INTO spreadsheet(user_id, map_id, clip)
+            VALUES (
+                        ?,
+                        (SELECT maps.id FROM maps WHERE maps.kacky_id = ?),
+                        ?
+                    )
+            ON DUPLICATE KEY
+            UPDATE spreadsheet.clip = ?;
+        """
+        self._cursor.execute(query, (userid, mapid, clip, clip))
+        self._connection.commit()
+
+    def set_map_difficulty(self, userid: int, mapid: int, diff: int):
+        query = """
+                    INSERT INTO spreadsheet(user_id, map_id, map_diff)
+                    VALUES (
+                                ?,
+                                (SELECT maps.id FROM maps WHERE maps.kacky_id = ?),
+                                ?
+                            )
+                    ON DUPLICATE KEY
+                    UPDATE spreadsheet.map_diff = ?;
+                """
+        self._cursor.execute(query, (userid, mapid, diff, diff))
+        self._connection.commit()
 
     def set_password(self, userid: int, newpwd: str):
         query = "UPDATE kack_users SET password = ? WHERE id = ?;"

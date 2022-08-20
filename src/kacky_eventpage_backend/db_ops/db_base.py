@@ -13,7 +13,7 @@ class DBConnection:
 
         # set up database connection to manage projects
         try:
-            self.connection = mariadb.connect(
+            self._connection = mariadb.connect(
                 host=self._config["dbhost"],
                 port=self._config["dbport"],
                 user=secrets["dbuser"],
@@ -23,7 +23,7 @@ class DBConnection:
         except mariadb.Error as e:
             self._logger.error(f"Connecting to database failed! {e}")
             raise e
-        self._cursor = self.connection.cursor()
+        self._cursor = self._connection.cursor()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
@@ -35,7 +35,7 @@ class DBConnection:
         exc_val
         exc_tb
         """
-        self.connection.close()
+        self._connection.close()
 
     def __enter__(self):
         """
