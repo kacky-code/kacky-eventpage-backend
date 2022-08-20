@@ -9,6 +9,7 @@ from typing import Any, Tuple
 import flask
 import flask_restful
 import yaml
+from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -26,6 +27,8 @@ from kacky_eventpage_backend.usermanagement.user_session_handler import User
 app = flask.Flask(__name__)
 jwt = JWTManager(app)
 config = {}
+CORS(app)
+app.config["CORS_HEADERS"] = "Content-Type"
 
 
 def get_pagedata():
