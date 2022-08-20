@@ -326,7 +326,7 @@ def is_invalid(
         return True
 
     if length and dtype is str:
-        if len(value) <= length:
+        if len(value) >= length:
             return True
 
     if vrange and not (vrange[0] <= value <= vrange[1]):
