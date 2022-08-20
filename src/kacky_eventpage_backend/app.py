@@ -226,7 +226,6 @@ def spreadsheet_full():
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
-    logger.debug(f"user {current_user} accessing spreadsheet")
     if not current_user:  # User not logged in
         # Only provide base data
         sheet = um.get_spreadsheet_all(None)
@@ -239,10 +238,11 @@ def spreadsheet_full():
             sheet[fin]["finished"] = True
 
     # add next play times for each map, regardless of login state
+    serverinfo = api.serverinfo.values()
     for mapid, dataset in sheet.items():
         # api.get_mapinfo()
         # input seems ok, try to find next time map is played
-        deltas = list(map(lambda s: s.find_next_play(mapid), api.serverinfo.values()))
+        deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
         # remove all None from servers which do not have map
         deltas = [i for i in deltas if i[0]]
         # check if we need to find the earliest play, if map is on multiple servers
