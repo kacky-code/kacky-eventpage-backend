@@ -109,7 +109,6 @@ def login_user_api():
 @jwt_required()
 def usermanagement():
     um = UserDataMngr(config, secrets)
-    error = ""
     if flask.request.json.get("tmnf", None):
         if is_invalid(flask.request.json["tmnf"], str, length=50):
             return return_bad_value("tmnf login")
