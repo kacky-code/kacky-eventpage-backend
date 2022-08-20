@@ -153,6 +153,7 @@ def logout_and_redirect_index():
 
 
 @app.route("/data.json")
+@jwt_required(optional=True)
 def json_serverdata_provider():
     """
     "API" used by front end JS. Provides updated server information in JSON format.
@@ -163,7 +164,10 @@ def json_serverdata_provider():
         Data in JSON format as a string
     """
     serverinfo = get_pagedata()
-    return json.dumps(serverinfo)
+    if not current_user:
+        # user not authenticated
+        return json.dumps(serverinfo), 401
+    return json.dumps(serverinfo), 200
 
 
 @app.route("/fin.json")
