@@ -41,7 +41,7 @@ class ServerInfo:
         self.playlist.set_current_map(self.cur_map, self.timeplayed_internal)
 
     def find_next_play(self, searchid: int):
-        return self.playlist.get_next_play(searchid, self.timelimit), self.name.string
+        return self.playlist.get_next_play(searchid, self.timelimit), self.servernum
 
     @property
     def timeplayed(self):

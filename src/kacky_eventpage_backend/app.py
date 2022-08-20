@@ -3,7 +3,6 @@ import hashlib
 import json
 import logging
 import os
-import re
 from pathlib import Path
 from typing import Any, Tuple
 
@@ -79,9 +78,9 @@ def register_user():
     cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
     res = udm.add_user(flask.request.json["user"], cryptpw, cryptmail)
     if res:
-        return flask_restful.http_status_message(201)
+        return flask.jsonify(flask_restful.http_status_message(201)), 201
     else:
-        return flask_restful.http_status_message(409)
+        return flask.jsonify(flask_restful.http_status_message(409)), 409
 
 
 @app.route("/login", methods=["POST"])
@@ -93,19 +92,19 @@ def login_user_api():
     assert not is_invalid(flask.request.json["pwd"], str, length=80)
     user = User(flask.request.json["user"], config, secrets).exists()
 
-    if not user or not user.login(flask.request.json["pwd"]):
+    if not user:
         return flask.jsonify("Wrong username or password"), 401
 
     # user wants to login
-    # cryptpw = hashlib.sha256(flask.request.json["login_pwd"].encode()).hexdigest()
-    # login_success = user.login(cryptpw)
-    login_success = user.login(flask.request.json["pwd"])
+    cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
+    login_success = user.login(cryptpw)
+    # login_success = user.login(flask.request.json["pwd"])
 
     if login_success:
         access_token = create_access_token(identity=user)
         return flask.jsonify(access_token=access_token), 200
 
-    return flask_restful.http_status_message(401)
+    return flask.jsonify(flask_restful.http_status_message(401)), 401
 
 
 @app.route("/usermgnt", methods=["POST"])
@@ -132,7 +131,7 @@ def usermanagement():
         if is_invalid(flask.request.json["mail"], str, length=80):
             return return_bad_value("mail")
         um.set_mail(current_user.get_id(), flask.request.json["mail"])
-    return flask_restful.http_status_message(200)
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
 @app.route("/logout")
@@ -146,11 +145,11 @@ def logout_and_redirect_index():
     flask.Response
         Redirect to the index page after logging out
     """
-    assert not is_invalid(get_jwt()["jti"], str, length=36)
-    pattern = re.compile(r"[0-9a-z]{8}-(?:[0-9a-z]{4}-){3}[0-9a-z]{12}")
-    assert pattern.match(get_jwt()["jti"])
+    #    assert not is_invalid(get_jwt()["jti"], str, length=36)
+    #    pattern = re.compile(r"[0-9a-z]{8}-(?:[0-9a-z]{4}-){3}[0-9a-z]{12}")
+    #    assert pattern.match(get_jwt()["jti"])
     TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
-    return flask_restful.http_status_message(200)
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
 @app.route("/data.json")
@@ -217,7 +216,7 @@ def spreadsheet_update():
             return return_bad_value("discord alarm toggle")
         um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
 
-    return flask_restful.http_status_message(200)
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
 @app.route("/spreadsheet", methods=["GET"])
@@ -227,6 +226,7 @@ def spreadsheet_full():
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
+    logger.debug(f"user {current_user} accessing spreadsheet")
     if not current_user:  # User not logged in
         # Only provide base data
         sheet = um.get_spreadsheet_all(None)
@@ -258,9 +258,9 @@ def spreadsheet_full():
         dataset["server"] = earliest[1]
     if not current_user:
         # return with HTTP 401 to indicate no auth
-        return json.dumps(sheet), 401
+        return json.dumps(list(sheet.values())), 401
     else:
-        return json.dumps(sheet), 200
+        return json.dumps(list(sheet.values())), 200
 
 
 @app.route("/")

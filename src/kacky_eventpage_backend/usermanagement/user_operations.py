@@ -164,9 +164,10 @@ class UserDataMngr(DBConnection):
     def get_spreadsheet_all(self, userid: Union[str, None]):
         default_line = {
             "map_diff": 0,
-            "map_pb": "",
-            "map_rank": None,
+            "map_pb": 0,
+            "map_rank": 0,
             "clip": "",
+            "kacky_id": None,
             "alarm": False,
             "finished": False,
         }
@@ -188,7 +189,7 @@ class UserDataMngr(DBConnection):
             qres = self._cursor.fetchall()
         else:
             qres = {
-                m: {}
+                m: {"kacky_id": m}
                 for m in range(self._config["min_mapid"], self._config["max_mapid"] - 1)
             }
             return qres
@@ -202,7 +203,7 @@ class UserDataMngr(DBConnection):
         # remove kacky_id from data, as it's the key now
         # also add missing keys with default values
         for map in sdict.values():
-            del map["kacky_id"]
+            # del map["kacky_id"]
             if len(map) < len(default_line):
                 for key in default_line:
                     if key not in map:
@@ -211,6 +212,7 @@ class UserDataMngr(DBConnection):
         for missmap in range(self._config["min_mapid"], self._config["max_mapid"] + 1):
             if missmap not in sdict.keys():
                 sdict.setdefault(missmap, default_line.copy())
+                sdict[missmap]["kacky_id"] = missmap
         discord_alarms = self.get_discord_alarms(userid)
         for alarm in discord_alarms:
             sdict[alarm]["alarm"] = True
