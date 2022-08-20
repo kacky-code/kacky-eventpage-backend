@@ -7,7 +7,7 @@ class TokenBlacklist(DBConnection):
     def blacklist_token(self, jti):
         query = "INSERT INTO token_blacklist(jti, date) VALUES (?, ?)"
         self._cursor.execute(
-            query, (jti, datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+            query, (jti, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
         self._connection.commit()
 
