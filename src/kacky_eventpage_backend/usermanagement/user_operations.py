@@ -249,6 +249,16 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid, mapid, diff, diff))
         self._connection.commit()
 
+    def set_password(self, userid: int, newpwd: str):
+        query = "UPDATE kack_users SET password = ? WHERE id = ?;"
+        self._cursor.execute(query, (newpwd, userid))
+        self.connection.commit()
+
+    def set_mail(self, userid: int, newmail: str):
+        query = "UPDATE kack_users SET mail = ? WHERE id = ?;"
+        self._cursor.execute(query, (newmail, userid))
+        self.connection.commit()
+
     def fetchone_and_only_one(self):
         qres = self._cursor.fetchall()
         if len(qres) > 1:

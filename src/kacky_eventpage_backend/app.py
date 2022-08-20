@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Tuple
 
@@ -59,7 +60,6 @@ def get_pagedata():
         tmpdict["timeLimit"] = val.timelimit
         tmpdict["timeLeft"] = val.timeplayed
         response["servers"].append(tmpdict)
-    print(response)
     return response
 
 
@@ -67,6 +67,10 @@ def get_pagedata():
 def register_user():
     # curl -d "user=peter&mail=peter&pwd=peter"
     # -X POST http://localhost:5000/register
+    assert not is_invalid(flask.request.json["user"], str, length=80)
+    assert not is_invalid(flask.request.json["pwd"], str, length=80)
+    assert not is_invalid(flask.request.json["mail"], str, length=80)
+
     udm = UserDataMngr(config, secrets)
     cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
     cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
@@ -82,8 +86,8 @@ def login_user_api():
     # curl -d '{"user":"asd",
     # "pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
-    assert flask.request.json["user"]
-    assert flask.request.json["pwd"]
+    assert not is_invalid(flask.request.json["user"], str, length=80)
+    assert not is_invalid(flask.request.json["pwd"], str, length=80)
     user = User(flask.request.json["user"], config, secrets).exists()
 
     if not user or not user.login(flask.request.json["pwd"]):
@@ -101,6 +105,33 @@ def login_user_api():
     return flask_restful.http_status_message(401)
 
 
+@app.route("/usermgnt", methods=["POST"])
+@jwt_required()
+def usermanagement():
+    um = UserDataMngr(config, secrets)
+    if flask.request.json.get("tmnf", None):
+        if is_invalid(flask.request.json["tmnf"], str, length=50):
+            return return_bad_value("tmnf login")
+        um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
+    if flask.request.json.get("tm20", None):
+        if is_invalid(flask.request.json["tm20"], str, length=50):
+            return return_bad_value("tm20 login")
+        um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
+    if flask.request.json.get("discord", None):
+        if is_invalid(flask.request.json["discord"], str, length=80):
+            return return_bad_value("discord handle")
+        um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
+    if flask.request.json.get("pwd", None):
+        if is_invalid(flask.request.json["pwd"], str, length=80):
+            return return_bad_value("pwd")
+        um.set_password(current_user.get_id(), flask.request.json["pwd"])
+    if flask.request.json.get("mail", None):
+        if is_invalid(flask.request.json["mail"], str, length=80):
+            return return_bad_value("mail")
+        um.set_mail(current_user.get_id(), flask.request.json["mail"])
+    return flask_restful.http_status_message(200)
+
+
 @app.route("/logout")
 @jwt_required()
 def logout_and_redirect_index():
@@ -112,6 +143,9 @@ def logout_and_redirect_index():
     flask.Response
         Redirect to the index page after logging out
     """
+    assert not is_invalid(get_jwt()["jti"], str, length=36)
+    pattern = re.compile(r"[0-9a-z]{8}-(?:[0-9a-z]{4}-){3}[0-9a-z]{12}")
+    assert pattern.match(get_jwt()["jti"])
     TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
     return flask_restful.http_status_message(200)
 
