@@ -111,6 +111,7 @@ def login_user_api():
 @jwt_required()
 def usermanagement():
     um = UserDataMngr(config, secrets)
+    # logger.debug(flask.request.json)
     if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
             return return_bad_value("tmnf login")
@@ -126,11 +127,13 @@ def usermanagement():
     if flask.request.json.get("pwd", None) is not None:
         if is_invalid(flask.request.json["pwd"], str, length=80):
             return return_bad_value("pwd")
-        um.set_password(current_user.get_id(), flask.request.json["pwd"])
+        cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
+        um.set_password(current_user.get_id(), cryptpw)
     if flask.request.json.get("mail", None) is not None:
         if is_invalid(flask.request.json["mail"], str, length=80):
             return return_bad_value("mail")
-        um.set_mail(current_user.get_id(), flask.request.json["mail"])
+        cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
+        um.set_mail(current_user.get_id(), cryptmail)
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
