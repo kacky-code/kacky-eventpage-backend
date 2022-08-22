@@ -171,6 +171,7 @@ class UserDataMngr(DBConnection):
             "map_rank": 0,
             "clip": "",
             "kacky_id": None,
+            "author": "",
             "alarm": False,
             "finished": False,
         }
@@ -181,7 +182,7 @@ class UserDataMngr(DBConnection):
                     spreadsheet.map_pb,
                     spreadsheet.map_rank,
                     spreadsheet.clip,
-                    maps.kacky_id
+                    maps.author
                 FROM spreadsheet
                 LEFT JOIN maps ON spreadsheet.map_id = maps.id
                 WHERE user_id = ?;
@@ -195,6 +196,19 @@ class UserDataMngr(DBConnection):
                 m: {"kacky_id": m}
                 for m in range(self._config["min_mapid"], self._config["max_mapid"] - 1)
             }
+        # Add map authors
+        authorquery = """
+            SELECT maps.kacky_id, maps.author
+            FROM maps
+            WHERE maps.kacky_id BETWEEN ? AND ?
+        """
+        self._cursor.execute(
+            authorquery, (self._config["min_mapid"], self._config["max_mapid"])
+        )
+        for m in self._cursor.fetchall():
+            qres[m[0]]["author"] = m[1]
+        # Leave early, if not userid
+        if not userid:
             return qres
         # make a dict from the result set
         sdict = [dict(zip(columns, row)) for row in qres]

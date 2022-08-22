@@ -249,7 +249,6 @@ def spreadsheet_full():
         deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
         # remove all None from servers which do not have map
         deltas = [i for i in deltas if i[0]]
-        logger.debug(deltas)
         # check if we need to find the earliest play, if map is on multiple servers
         earliest = deltas[0]
         if len(deltas) > 1:
