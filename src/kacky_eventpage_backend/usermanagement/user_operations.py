@@ -74,6 +74,7 @@ class UserDataMngr(DBConnection):
         # toggle alarm in list. For this, make alarms string a list, remove
         # or set the alarm and write it back to DB
         alarms = dict.fromkeys([int(a) for a in alarms.split(";")])
+        self._logger.debug(f"user {userid} has alarms {alarms}")
         try:
             # Remove alarm if exists
             del alarms[mapid]
@@ -83,9 +84,11 @@ class UserDataMngr(DBConnection):
 
         # make alarms a string again
         alarmstr = ";".join(str(a) for a in alarms.keys())
+        self._logger.debug(f"user {userid} has alarms {alarmstr}")
 
         query = "UPDATE user_fields SET alarms = ? WHERE id = ?;"
         self._cursor.execute(query, (alarmstr, userid))
+        self._logger.debug("updated discord alarms")
         self._connection.commit()
 
     def get_discord_alarms(self, userid: int):
@@ -212,6 +215,7 @@ class UserDataMngr(DBConnection):
         for missmap in range(self._config["min_mapid"], self._config["max_mapid"] + 1):
             if missmap not in sdict.keys():
                 sdict.setdefault(missmap, default_line.copy())
+                # sdict[missmap] = {}
                 sdict[missmap]["kacky_id"] = missmap
         discord_alarms = self.get_discord_alarms(userid)
         for alarm in discord_alarms:
@@ -249,6 +253,9 @@ class UserDataMngr(DBConnection):
                     UPDATE spreadsheet.map_diff = ?;
                 """
         self._cursor.execute(query, (userid, mapid, diff, diff))
+        self._logger.debug(
+            "Executed query '{query}', params {(userid, mapid, diff, diff)}"
+        )
         self._connection.commit()
 
     def set_password(self, userid: int, newpwd: str):
