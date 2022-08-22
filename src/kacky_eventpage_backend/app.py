@@ -134,6 +134,17 @@ def usermanagement():
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
+@app.route("/usermgnt", methods=["GET"])
+@jwt_required()
+def get_user_data():
+    um = UserDataMngr(config, secrets)
+    userid = current_user.get_id()
+    tmnf = um.get_tmnf_login(userid)
+    tm20 = um.get_tm20_login(userid)
+    discord = um.get_discord_id(userid)
+    return flask.jsonify({"tmnf": tmnf, "tm2ß": tm20, "discord": discord}), 200
+
+
 @app.route("/logout")
 @jwt_required()
 def logout_and_redirect_index():
@@ -301,7 +312,7 @@ def return_bad_value(error_param: str):
         f"Bad value for {error_param} - userid {current_user.get_id()} "
         f"- payload {flask.request.json}"
     )
-    return flask_restful.http_status_message(400), 400
+    return flask.jsonify(flask_restful.http_status_message(400)), 400
 
 
 def is_invalid(
