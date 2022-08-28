@@ -36,6 +36,13 @@ class UserDataMngr(DBConnection):
             self._logger.info(f"User {user} does not yet exist. Creating.")
             query = "INSERT INTO kack_users(username, password, mail) VALUES (?, ?, ?);"
             self._cursor.execute(query, (user, cryptpwd, cryptmail))
+            query = """
+                INSERT INTO user_fields(id)
+                SELECT kack_users.id
+                FROM kack_users
+                WHERE kack_users.username = ?;
+            """
+            self._cursor.execute(query, (user,))
             self._connection.commit()
             return True
         else:
@@ -63,7 +70,7 @@ class UserDataMngr(DBConnection):
         """
         query = "SELECT `discord_handle` FROM `user_fields` WHERE `id` = ?;"
         self._cursor.execute(query, (userid,))
-        return self._cursor.fetchone()[0]
+        return self._cursor.fetchone()[0] or ""
 
     def toggle_discord_alarm(self, userid: int, mapid: int):
         # get currently set alarms
@@ -73,8 +80,10 @@ class UserDataMngr(DBConnection):
 
         # toggle alarm in list. For this, make alarms string a list, remove
         # or set the alarm and write it back to DB
-        alarms = dict.fromkeys([int(a) for a in alarms.split(";")])
-        self._logger.debug(f"user {userid} has alarms {alarms}")
+        if alarms != "":
+            alarms = dict.fromkeys([int(a) for a in alarms.split(";")])
+        else:
+            alarms = {}
         try:
             # Remove alarm if exists
             del alarms[mapid]
@@ -84,17 +93,18 @@ class UserDataMngr(DBConnection):
 
         # make alarms a string again
         alarmstr = ";".join(str(a) for a in alarms.keys())
-        self._logger.debug(f"user {userid} has alarms {alarmstr}")
 
         query = "UPDATE user_fields SET alarms = ? WHERE id = ?;"
         self._cursor.execute(query, (alarmstr, userid))
-        self._logger.debug("updated discord alarms")
         self._connection.commit()
 
     def get_discord_alarms(self, userid: int):
         query = "SELECT alarms from user_fields WHERE id = ?;"
         self._cursor.execute(query, (userid,))
-        return [int(map) for map in self._cursor.fetchone()[0].split(";")]
+        try:
+            return [int(map) for map in self._cursor.fetchone()[0].split(";")]
+        except ValueError:
+            return ""
 
     def set_tm20_login(self, user_id: int, tmid: str):
         """
@@ -129,7 +139,7 @@ class UserDataMngr(DBConnection):
         """
         query = "SELECT `tm20_login` FROM `user_fields` WHERE `id` = ?;"
         self._cursor.execute(query, (user_id,))
-        return self._cursor.fetchone()[0]
+        return self._cursor.fetchone()[0] or ""
 
     def set_tmnf_login(self, user_id: int, tmid: str):
         """
@@ -162,7 +172,7 @@ class UserDataMngr(DBConnection):
         """
         query = "SELECT `tmnf_login` FROM `user_fields` WHERE `id` = ?;"
         self._cursor.execute(query, (user_id,))
-        return self._cursor.fetchone()[0]
+        return self._cursor.fetchone()[0] or ""
 
     def get_spreadsheet_all(self, userid: Union[str, None]):
         default_line = {
@@ -182,6 +192,7 @@ class UserDataMngr(DBConnection):
                     spreadsheet.map_pb,
                     spreadsheet.map_rank,
                     spreadsheet.clip,
+                    maps.kacky_id,
                     maps.author
                 FROM spreadsheet
                 LEFT JOIN maps ON spreadsheet.map_id = maps.id
@@ -191,31 +202,28 @@ class UserDataMngr(DBConnection):
             # get column names to build a dictionary as result
             columns = [col[0] for col in self._cursor.description]
             qres = self._cursor.fetchall()
+            # make a dict from the result set
+            sdict = [dict(zip(columns, row)) for row in qres]
+            # make kacky_ids the key of a dict containing all the data (do this in
+            # an extra step to use `kacky_id` key from the dict instead of some
+            # hardcoded array position. Slightly more work, but should be fine
+            sdict = {row["kacky_id"]: row for row in sdict}
         else:
-            qres = {
+            sdict = {
                 m: {"kacky_id": m}
-                for m in range(self._config["min_mapid"], self._config["max_mapid"] - 1)
+                for m in range(self._config["min_mapid"], self._config["max_mapid"] + 1)
             }
-        # Add map authors
+            # Add map authors
         authorquery = """
             SELECT maps.kacky_id, maps.author
             FROM maps
             WHERE maps.kacky_id BETWEEN ? AND ?
         """
         self._cursor.execute(
-            authorquery, (self._config["min_mapid"], self._config["max_mapid"])
+            authorquery, (self._config["min_mapid"], self._config["max_mapid"] + 1)
         )
-        for m in self._cursor.fetchall():
-            qres[m[0]]["author"] = m[1]
-        # Leave early, if not userid
-        if not userid:
-            return qres
-        # make a dict from the result set
-        sdict = [dict(zip(columns, row)) for row in qres]
-        # make kacky_ids the key of a dict containing all the data (do this in
-        # an extra step to use `kacky_id` key from the dict instead of some
-        # hardcoded array position. Slightly more work, but should be fine
-        sdict = {row["kacky_id"]: row for row in sdict}
+        authors = self._cursor.fetchall()
+
         # STUPID CODE STARTS HERE
         # remove kacky_id from data, as it's the key now
         # also add missing keys with default values
@@ -231,6 +239,11 @@ class UserDataMngr(DBConnection):
                 sdict.setdefault(missmap, default_line.copy())
                 # sdict[missmap] = {}
                 sdict[missmap]["kacky_id"] = missmap
+        for m in authors:
+            sdict[m[0]]["author"] = m[1]
+        # Leave early, if not userid
+        if not userid:
+            return sdict
         discord_alarms = self.get_discord_alarms(userid)
         for alarm in discord_alarms:
             sdict[alarm]["alarm"] = True
@@ -267,9 +280,6 @@ class UserDataMngr(DBConnection):
                     UPDATE spreadsheet.map_diff = ?;
                 """
         self._cursor.execute(query, (userid, mapid, diff, diff))
-        self._logger.debug(
-            "Executed query '{query}', params {(userid, mapid, diff, diff)}"
-        )
         self._connection.commit()
 
     def set_password(self, userid: int, newpwd: str):

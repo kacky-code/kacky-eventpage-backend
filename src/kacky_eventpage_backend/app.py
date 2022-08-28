@@ -60,7 +60,8 @@ def get_pagedata():
             }
             tmpdict["maps"].append(mapdict)
         tmpdict["timeLimit"] = val.timelimit
-        tmpdict["timeLeft"] = val.timeplayed
+        timeleft = val.timelimit * 60 - val.timeplayed
+        tmpdict["timeLeft"] = timeleft if timeleft > 0 else 0
         response["servers"].append(tmpdict)
     return response
 
@@ -111,7 +112,6 @@ def login_user_api():
 @jwt_required()
 def usermanagement():
     um = UserDataMngr(config, secrets)
-    # logger.debug(flask.request.json)
     if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
             return return_bad_value("tmnf login")
@@ -145,7 +145,7 @@ def get_user_data():
     tmnf = um.get_tmnf_login(userid)
     tm20 = um.get_tm20_login(userid)
     discord = um.get_discord_id(userid)
-    return flask.jsonify({"tmnf": tmnf, "tm2ß": tm20, "discord": discord}), 200
+    return flask.jsonify({"tmnf": tmnf, "tm20": tm20, "discord": discord}), 200
 
 
 @app.route("/logout")
