@@ -110,7 +110,7 @@ class KackyAPIHandler:
             request_params = {}
         if self.config["testing_mode"]:
             return TESTING_DATA[value]
-        self.logger.info("Updating self.servers.")
+        self.logger.info(f"Updating {value} from Kacky API.")
 
         # add password to request
         request_params["password"] = self.api_pwd
