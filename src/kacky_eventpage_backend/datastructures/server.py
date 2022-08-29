@@ -45,6 +45,7 @@ class ServerInfo:
 
     @property
     def timeplayed(self):
-        return (
-            datetime.datetime.now() - self.last_update
-        ).total_seconds() + self.timeplayed_internal
+        return int(
+            (datetime.datetime.now() - self.last_update).total_seconds()
+            + self.timeplayed_internal
+        )

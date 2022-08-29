@@ -60,7 +60,8 @@ def get_pagedata():
             }
             tmpdict["maps"].append(mapdict)
         tmpdict["timeLimit"] = val.timelimit
-        tmpdict["timeLeft"] = val.timeplayed
+        timeleft = val.timelimit * 60 - val.timeplayed
+        tmpdict["timeLeft"] = timeleft if timeleft > 0 else 0
         response["servers"].append(tmpdict)
     return response
 
@@ -111,27 +112,40 @@ def login_user_api():
 @jwt_required()
 def usermanagement():
     um = UserDataMngr(config, secrets)
-    if flask.request.json.get("tmnf", None):
+    if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
             return return_bad_value("tmnf login")
         um.set_tmnf_login(current_user.get_id(), flask.request.json["tmnf"])
-    if flask.request.json.get("tm20", None):
+    if flask.request.json.get("tm20", None) is not None:
         if is_invalid(flask.request.json["tm20"], str, length=50):
             return return_bad_value("tm20 login")
         um.set_tm20_login(current_user.get_id(), flask.request.json["tm20"])
-    if flask.request.json.get("discord", None):
+    if flask.request.json.get("discord", None) is not None:
         if is_invalid(flask.request.json["discord"], str, length=80):
             return return_bad_value("discord handle")
         um.set_discord_id(current_user.get_id(), flask.request.json["discord"])
-    if flask.request.json.get("pwd", None):
+    if flask.request.json.get("pwd", None) is not None:
         if is_invalid(flask.request.json["pwd"], str, length=80):
             return return_bad_value("pwd")
-        um.set_password(current_user.get_id(), flask.request.json["pwd"])
-    if flask.request.json.get("mail", None):
+        cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
+        um.set_password(current_user.get_id(), cryptpw)
+    if flask.request.json.get("mail", None) is not None:
         if is_invalid(flask.request.json["mail"], str, length=80):
             return return_bad_value("mail")
-        um.set_mail(current_user.get_id(), flask.request.json["mail"])
+        cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
+        um.set_mail(current_user.get_id(), cryptmail)
     return flask.jsonify(flask_restful.http_status_message(200)), 200
+
+
+@app.route("/usermgnt", methods=["GET"])
+@jwt_required()
+def get_user_data():
+    um = UserDataMngr(config, secrets)
+    userid = current_user.get_id()
+    tmnf = um.get_tmnf_login(userid)
+    tm20 = um.get_tm20_login(userid)
+    discord = um.get_discord_id(userid)
+    return flask.jsonify({"tmnf": tmnf, "tm20": tm20, "discord": discord}), 200
 
 
 @app.route("/logout")
@@ -152,7 +166,7 @@ def logout_and_redirect_index():
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
-@app.route("/data.json")
+@app.route("/dashboard")
 @jwt_required(optional=True)
 def json_serverdata_provider():
     """
@@ -166,11 +180,11 @@ def json_serverdata_provider():
     serverinfo = get_pagedata()
     if not current_user:
         # user not authenticated
-        return json.dumps(serverinfo), 401
+        return json.dumps(serverinfo), 200
     return json.dumps(serverinfo), 200
 
 
-@app.route("/fin.json")
+@app.route("/fin")
 @jwt_required(optional=True)
 def build_fin_json():
     if not current_user:  # User is not logged in
@@ -197,7 +211,7 @@ def spreadsheet_update():
 
     um = UserDataMngr(config, secrets)
 
-    if flask.request.json.get("diff", None):
+    if flask.request.json.get("diff", None) is not None:
         # lazy eval should make sure this is an int in or case
         if is_invalid(flask.request.json["diff"], int, vrange=(0, 6)):
             return return_bad_value("map difficulty")
@@ -206,7 +220,7 @@ def spreadsheet_update():
             flask.request.json["mapid"],
             flask.request.json["diff"],
         )
-    if flask.request.json.get("clip", None):
+    if flask.request.json.get("clip", None) is not None:
         if is_invalid(flask.request.json["clip"], str, length=150):
             return return_bad_value("map alarm")
         um.set_map_clip(
@@ -214,7 +228,7 @@ def spreadsheet_update():
             flask.request.json["mapid"],
             flask.request.json["clip"],
         )
-    if flask.request.json.get("alarm", None):
+    if flask.request.json.get("alarm", None) is not None:
         # lazy eval should make sure this is an int in or case
         if is_invalid(flask.request.json["alarm"], int, vrange=MAPIDS):
             return return_bad_value("discord alarm toggle")
@@ -253,16 +267,16 @@ def spreadsheet_full():
         earliest = deltas[0]
         if len(deltas) > 1:
             for d in deltas[1:]:
-                if int(earliest[0][0]) > int(d[0][0]):  # this server has lower hours
-                    if int(earliest[0][1]) > int(
-                        d[0][1]
-                    ):  # this server has lower minutes
-                        earliest = d
+                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                    d[0][0]
+                ) * 60 + int(d[0][1]):
+                    earliest = d
         dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
         dataset["server"] = earliest[1]
+    sheet = dict(sorted(sheet.items()))
     if not current_user:
         # return with HTTP 401 to indicate no auth
-        return json.dumps(list(sheet.values())), 401
+        return json.dumps(list(sheet.values())), 200
     else:
         return json.dumps(list(sheet.values())), 200
 
@@ -301,11 +315,11 @@ def return_bad_value(error_param: str):
         f"Bad value for {error_param} - userid {current_user.get_id()} "
         f"- payload {flask.request.json}"
     )
-    return flask_restful.http_status_message(400), 400
+    return flask.jsonify(flask_restful.http_status_message(400)), 400
 
 
 def is_invalid(
-    value: Any, dtype: Any, vrange: Tuple[int, int] = (), length: int = None
+    value: Any, dtype: Any, vrange: Tuple[int, int] = None, length: int = None
 ):
     """
     Checks if value is valid by type and value.
