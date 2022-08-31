@@ -3,6 +3,7 @@ import re
 
 class TMstr:
     def __init__(self, string):
+        string = string.replace("<", "&lt;").replace(">", "&gt;")
         self.string = re.sub(r"\$[0-9a-fA-F]{3}|\$[wnoitsgzWNOITSGZ$]", "", string)
 
         # replace color codes with html
