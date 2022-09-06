@@ -38,6 +38,7 @@ logger_name: KKmaptimes
 dbhost: localhost
 dbport: 3306
 dbname: kacky_testing
+num_db_connections: 15
 # dbuser and dbpwd in secrets.yaml need to be set!
 
 # TESTING MODE

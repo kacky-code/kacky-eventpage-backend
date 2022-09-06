@@ -6,13 +6,17 @@ from kacky_eventpage_backend.db_ops.db_base import DBConnection
 class TokenBlacklist(DBConnection):
     def blacklist_token(self, jti):
         query = "INSERT INTO token_blacklist(jti, date) VALUES (?, ?)"
-        self._cursor.execute(
+        # self._cursor.execute(
+        #    query, (jti, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # )
+        # self._connection.commit()
+        self.execute(
             query, (jti, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
-        self._connection.commit()
 
     def check_token(self, jti):
         query = "SELECT COUNT(1) FROM token_blacklist WHERE jti = ?"
-        self._cursor.execute(query, (jti,))
+        # self._cursor.execute(query, (jti,))
         # return True if revoked
-        return self._cursor.fetchone()[0] != 0
+        # return self._cursor.fetchone()[0] != 0
+        return self.fetchone(query, (jti,))[0] != 0
