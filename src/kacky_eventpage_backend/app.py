@@ -178,9 +178,6 @@ def json_serverdata_provider():
         Data in JSON format as a string
     """
     serverinfo = get_pagedata()
-    if not current_user:
-        # user not authenticated
-        return json.dumps(serverinfo), 200
     return json.dumps(serverinfo), 200
 
 
@@ -418,5 +415,5 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
 )  # Why 100? idk, looks cool
 
 logger.info("Starting application.")
-# app.run(debug=True, host=config["bind_hosts"], port=config["port"])
-app.run(host=config["bind_hosts"], port=config["port"])
+if "gunicorn" not in os.environ.get("SERVER_SOFTWARE", ""):
+    app.run(host=config["bind_hosts"], port=config["port"])

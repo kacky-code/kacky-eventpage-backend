@@ -1,20 +1,21 @@
-# FLASK PARAMETERS
+# FLASK/GUNICORN PARAMETERS
 port: 5005
-bind_hosts: 0.0.0.0
+bind_hosts: 127.0.0.1
+workers: 4
 
 # APPLICATION PARAMETERS
-install_dir: /var/www/flask/kk_schedule
+install_dir: /var/www/flask/kacky-eventpage-backend
 cachetime: 60 # seconds
 mapchangetime_s: 45
-log_visits: 1 # 0, 1
+log_visits: 0 # 0, 1
 visits_logfile: visits.log # might require absolute path
-enable_stats_page: True # Turning this on provides a DDOS attack vector
+enable_stats_page: False # Turning this on provides a DDOS attack vector
 enable_discord_bot: True
 
 # KK META INFO
-compend: 30.01.2022 22:00
-min_mapid: 201
-max_mapid: 275
+compend: 18.09.2022 22:00
+min_mapid: 151
+max_mapid: 225
 # playlist parameter can have values ["linear", "custom"]
 # - "linear" for [min_mapid, ... max_mapid] on every server
 # - "custom" for different maps per server (e. g. colors/difficulties)
@@ -31,13 +32,13 @@ num_extends: 2
 # LOGGING
 logtype: STDOUT # STDOUT, FILE
 logfile: flask.log # might require absolute path
-loglevel: DEBUG # DEBUG, INFO, WARNING, ERROR, CRITICAL
+loglevel: WARNING # DEBUG, INFO, WARNING, ERROR, CRITICAL
 logger_name: KKmaptimes
 
 # DATABASE SETTINGS
 dbhost: localhost
 dbport: 3306
-dbname: kacky_testing
+dbname: kacky_backend
 # dbuser and dbpwd in secrets.yaml need to be set!
 
 # TESTING MODE
