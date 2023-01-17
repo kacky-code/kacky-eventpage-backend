@@ -70,6 +70,7 @@ def get_pagedata():
 def register_user():
     # curl -d "user=peter&mail=peter&pwd=peter"
     # -X POST http://localhost:5000/register
+    log_access("/register - POST", bool(current_user))
     assert not is_invalid(flask.request.json["user"], str, length=80)
     assert not is_invalid(flask.request.json["pwd"], str, length=80)
     assert not is_invalid(flask.request.json["mail"], str, length=80)
@@ -89,6 +90,7 @@ def login_user_api():
     # curl -d '{"user":"asd",
     # "pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
+    log_access("/login - POST", bool(current_user))
     assert not is_invalid(flask.request.json["user"], str, length=80)
     assert not is_invalid(flask.request.json["pwd"], str, length=80)
     user = User(flask.request.json["user"], config, secrets).exists()
@@ -111,6 +113,7 @@ def login_user_api():
 @app.route("/usermgnt", methods=["POST"])
 @jwt_required()
 def usermanagement():
+    log_access("/usermgnt - GET", bool(current_user))
     um = UserDataMngr(config, secrets)
     if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
@@ -140,6 +143,7 @@ def usermanagement():
 @app.route("/usermgnt", methods=["GET"])
 @jwt_required()
 def get_user_data():
+    log_access("/usermgnt - POST", bool(current_user))
     um = UserDataMngr(config, secrets)
     userid = current_user.get_id()
     tmnf = um.get_tmnf_login(userid)
@@ -162,6 +166,7 @@ def logout_and_redirect_index():
     #    assert not is_invalid(get_jwt()["jti"], str, length=36)
     #    pattern = re.compile(r"[0-9a-z]{8}-(?:[0-9a-z]{4}-){3}[0-9a-z]{12}")
     #    assert pattern.match(get_jwt()["jti"])
+    log_access("/logout", bool(current_user))
     TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
@@ -177,6 +182,7 @@ def json_serverdata_provider():
     str
         Data in JSON format as a string
     """
+    log_access("/dashboard", bool(current_user))
     serverinfo = get_pagedata()
     return json.dumps(serverinfo), 200
 
@@ -202,6 +208,7 @@ def build_fin_json():
 @app.route("/spreadsheet", methods=["POST"])
 @jwt_required()
 def spreadsheet_update():
+    log_access("/spreadsheet - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
     assert isinstance(flask.request.json["mapid"], int)
     assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
@@ -237,6 +244,7 @@ def spreadsheet_update():
 @app.route("/spreadsheet", methods=["GET"])
 @jwt_required(optional=True)
 def spreadsheet_full():
+    log_access("/spreadsheet - GET", bool(current_user))
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
@@ -262,14 +270,19 @@ def spreadsheet_full():
         deltas = [i for i in deltas if i[0]]
         # check if we need to find the earliest play, if map is on multiple servers
         earliest = deltas[0]
+        # check if we need to find the earliest play, if map is on multiple servers
         if len(deltas) > 1:
             for d in deltas[1:]:
                 if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
                     d[0][0]
                 ) * 60 + int(d[0][1]):
                     earliest = d
-        dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
-        dataset["server"] = earliest[1]
+        if config["testing_mode"]:
+            dataset["upcomingIn"] = 1 * 60 + 1
+            dataset["server"] = "TestServer XYZ"
+        else:
+            dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+            dataset["server"] = earliest[1]
     sheet = dict(sorted(sheet.items()))
     if not current_user:
         # return with HTTP 401 to indicate no auth
@@ -348,6 +361,22 @@ def is_invalid(
         return True
 
     return False
+
+
+def log_access(route: str, logged_in: bool = False):
+    logger.info(
+        f"{route} accessed by "
+        f"{flask.request.headers.get('Cf-Connecting-Ip', 'unknown-IP')} "
+        f"({flask.request.headers.get('Cf-Ipcountry', 'unknown-origin')}). "
+        f"User status: {logged_in}"
+    )
+    logger.info(
+        flask.request.headers.get("Origin", "")
+        + " - "
+        + flask.request.headers.get("Referer", "")
+        + " - "
+        + flask.request.headers.get("Cf-Connecting-Ip", "")
+    )
 
 
 #                    _
