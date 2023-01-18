@@ -12,10 +12,10 @@ visits_logfile: visits.log # might require absolute path
 enable_stats_page: False # Turning this on provides a DDOS attack vector
 enable_discord_bot: True
 
-# KK META INFO
+# META INFO
 compend: 18.09.2022 22:00
-min_mapid: 151
-max_mapid: 225
+eventtype: KK # [KK, KR, KX]
+edition: 7 # edition of the eventtype
 # playlist parameter can have values ["linear", "custom"]
 # - "linear" for [min_mapid, ... max_mapid] on every server
 # - "custom" for different maps per server (e. g. colors/difficulties)

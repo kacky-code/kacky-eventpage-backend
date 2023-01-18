@@ -243,7 +243,7 @@ def spreadsheet_update():
 
 @app.route("/spreadsheet", methods=["GET"])
 @jwt_required(optional=True)
-def spreadsheet_full():
+def spreadsheet_current_event():
     log_access("/spreadsheet - GET", bool(current_user))
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
     # http://localhost:5005/spreadsheet
@@ -251,44 +251,72 @@ def spreadsheet_full():
     # Check if user is logged in.
     if not current_user:  # User not logged in
         # Only provide base data
-        sheet = um.get_spreadsheet_all(None)
+        sheet = um.get_spreadsheet_event(None, config["eventtype"], config["edition"])
     else:  # User logged in
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
-        sheet = um.get_spreadsheet_all(userid)
+        sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
         finned = build_fin_json()
-        for fin in finned["mapids"]:
-            sheet[fin]["finished"] = True
+        #for fin in finned["mapids"]:
+        #    sheet[fin]["finished"] = True
 
     # add next play times for each map, regardless of login state
     serverinfo = api.serverinfo.values()
     for mapid, dataset in sheet.items():
-        # api.get_mapinfo()
-        # input seems ok, try to find next time map is played
-        deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
-        # remove all None from servers which do not have map
-        deltas = [i for i in deltas if i[0]]
-        # check if we need to find the earliest play, if map is on multiple servers
-        earliest = deltas[0]
-        # check if we need to find the earliest play, if map is on multiple servers
-        if len(deltas) > 1:
-            for d in deltas[1:]:
-                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
-                    d[0][0]
-                ) * 60 + int(d[0][1]):
-                    earliest = d
         if config["testing_mode"]:
             dataset["upcomingIn"] = 1 * 60 + 1
             dataset["server"] = "TestServer XYZ"
         else:
+            # api.get_mapinfo()
+            # input seems ok, try to find next time map is played
+            deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
+            # remove all None from servers which do not have map
+            deltas = [i for i in deltas if i[0]]
+            # check if we need to find the earliest play, if map is on multiple servers
+            earliest = deltas[0]
+            # check if we need to find the earliest play, if map is on multiple servers
+            if len(deltas) > 1:
+                for d in deltas[1:]:
+                    if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                        d[0][0]
+                    ) * 60 + int(d[0][1]):
+                        earliest = d
             dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
             dataset["server"] = earliest[1]
     sheet = dict(sorted(sheet.items()))
-    if not current_user:
-        # return with HTTP 401 to indicate no auth
-        return json.dumps(list(sheet.values())), 200
-    else:
-        return json.dumps(list(sheet.values())), 200
+    return json.dumps(list(sheet.values())), 200
+
+@app.route("/spreadsheet/<event>/<edition>", methods=["GET"])
+@jwt_required(optional=True)
+def spreadsheet_hunting(event, edition):
+    log_access(f"/spreadsheet/{event}/{edition} - GET", bool(current_user))
+    if not check_event_edition_legal(event, edition):
+        return "Error: bad path", 404
+    # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
+    # http://localhost:5005/spreadsheet
+    um = UserDataMngr(config, secrets)
+    # Check if user is logged in.
+    if not current_user:  # User not logged in
+        # Only provide base data
+        sheet = um.get_spreadsheet_event(None, config["eventtype"], config["edition"])
+    else:  # User logged in
+        # Add user specific data to the spreadsheet
+        userid = current_user.get_id()
+        sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
+        finned = build_fin_json()
+        #for fin in finned["mapids"]:
+        #    sheet[fin]["finished"] = True
+
+    sheet = dict(sorted(sheet.items()))
+    return json.dumps(list(sheet.values())), 200
+
+
+def check_event_edition_legal(event: Any, edition: Any):
+    # check if parameters are valid (this also is input sanitation)
+    if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
+        # Allowed arguments
+        return True
+    return False
 
 
 @app.route("/")
@@ -396,7 +424,8 @@ with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
     app.secret_key = secrets["flask_secret"]
     app.config["JWT_SECRET_KEY"] = secrets["jwt_secret"]
 
-MAPIDS = (config["min_mapid"], config["max_mapid"])
+MAPIDS = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(config["eventtype"], config["edition"])
+MAPIDS = (min(MAPIDS), max(MAPIDS))
 
 if config["logtype"] == "STDOUT":
     pass

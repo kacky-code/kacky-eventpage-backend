@@ -249,6 +249,80 @@ class UserDataMngr(DBConnection):
             sdict[alarm]["alarm"] = True
         return sdict
 
+    def get_spreadsheet_event(self, userid: Union[str, None], eventtype: str, edition: int):
+        if userid:
+            query = """
+                    SELECT 
+                        maps.kacky_id, 
+                        maps.author, 
+                        data.*,
+                        wr.score AS wr_score,
+                        wr.nickname AS wr_nick, 
+                        wr.login AS wr_login
+                    FROM maps 
+                    LEFT JOIN (
+                        SELECT 
+                            maps.id, 
+                            spreadsheet.map_diff, 
+                            spreadsheet.map_pb, 
+                            spreadsheet.map_rank, 
+                            spreadsheet.clip
+                        FROM maps 
+                        LEFT JOIN spreadsheet ON spreadsheet.map_id = maps.id 
+                        INNER JOIN events ON maps.kackyevent = events.id
+                        WHERE spreadsheet.user_id = ? AND events.type = ? AND events.edition = ?
+                    ) AS data ON maps.id = data.id
+                    LEFT JOIN events ON maps.kackyevent = events.id
+                    INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
+                    WHERE events.type = ? AND events.edition = ?;
+                    """
+            self._cursor.execute(query, (userid, eventtype, edition, eventtype, edition))
+            # get column names to build a dictionary as result
+            columns = [col[0] for col in self._cursor.description]
+        else:
+            query = """
+                    SELECT 
+                        maps.kacky_id, 
+                        maps.author, 
+                        wr.score AS wr_score,
+                        wr.nickname AS wr_nick, 
+                        wr.login AS wr_login
+                    FROM maps 
+                    LEFT JOIN events ON maps.kackyevent = events.id
+                    INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
+                    WHERE events.type = ? AND events.edition = ?;
+                    """
+            self._cursor.execute(query, (eventtype, edition))
+            # get column names to build a dictionary as result
+            columns = [col[0] for col in self._cursor.description]
+        qres = self._cursor.fetchall()
+        # make a dict from the result set
+        sdict = [dict(zip(columns, row)) for row in qres]
+        # only keep one element as wrholder. Value is either wr_login or wr_nick.
+        # If wr_login is not empty string, use it. Else use wr_nick
+        for mapinfo in sdict:
+            if mapinfo["wr_login"] == "":
+                mapinfo["wr_holder"] = mapinfo["wr_nick"]
+            else:
+                mapinfo["wr_holder"] = mapinfo["wr_login"]
+            # delete both keys, they are unused now
+            del mapinfo["wr_login"]
+            del mapinfo["wr_nick"]
+
+        # make kacky_ids the key of a dict containing all the data (do this in
+        # an extra step to use `kacky_id` key from the dict instead of some
+        # hardcoded array position. Slightly more work, but should be fine
+        sdict = {row["kacky_id"]: row for row in sdict}
+
+        # Leave early, if not userid
+        if not userid:
+            return sdict
+        # Add discord alarms to the mix
+        discord_alarms = self.get_discord_alarms(userid)
+        for alarm in discord_alarms:
+            sdict[alarm]["alarm"] = True
+        return sdict
+
     def get_spreadsheet_line(self, userid: int, mapid: int):
         query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
         self._cursor.execute(query, (userid, mapid))
