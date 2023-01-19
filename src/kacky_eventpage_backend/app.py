@@ -70,6 +70,7 @@ def get_pagedata():
 def register_user():
     # curl -d "user=peter&mail=peter&pwd=peter"
     # -X POST http://localhost:5000/register
+    log_access("/register - POST", bool(current_user))
     assert not is_invalid(flask.request.json["user"], str, length=80)
     assert not is_invalid(flask.request.json["pwd"], str, length=80)
     assert not is_invalid(flask.request.json["mail"], str, length=80)
@@ -89,6 +90,7 @@ def login_user_api():
     # curl -d '{"user":"asd",
     # "pwd":"688787d8ff144c502c7f5cffaafe2cc588d86079f9de88304c26b0cb99ce91c6"}'
     # -H "Content-Type: application/json" -X POST http://localhost:5000/login
+    log_access("/login - POST", bool(current_user))
     assert not is_invalid(flask.request.json["user"], str, length=80)
     assert not is_invalid(flask.request.json["pwd"], str, length=80)
     user = User(flask.request.json["user"], config, secrets).exists()
@@ -111,6 +113,7 @@ def login_user_api():
 @app.route("/usermgnt", methods=["POST"])
 @jwt_required()
 def usermanagement():
+    log_access("/usermgnt - GET", bool(current_user))
     um = UserDataMngr(config, secrets)
     if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
@@ -140,6 +143,7 @@ def usermanagement():
 @app.route("/usermgnt", methods=["GET"])
 @jwt_required()
 def get_user_data():
+    log_access("/usermgnt - POST", bool(current_user))
     um = UserDataMngr(config, secrets)
     userid = current_user.get_id()
     tmnf = um.get_tmnf_login(userid)
@@ -162,6 +166,7 @@ def logout_and_redirect_index():
     #    assert not is_invalid(get_jwt()["jti"], str, length=36)
     #    pattern = re.compile(r"[0-9a-z]{8}-(?:[0-9a-z]{4}-){3}[0-9a-z]{12}")
     #    assert pattern.match(get_jwt()["jti"])
+    log_access("/logout", bool(current_user))
     TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
@@ -177,6 +182,7 @@ def json_serverdata_provider():
     str
         Data in JSON format as a string
     """
+    log_access("/dashboard", bool(current_user))
     serverinfo = get_pagedata()
     return json.dumps(serverinfo), 200
 
@@ -202,6 +208,7 @@ def build_fin_json():
 @app.route("/spreadsheet", methods=["POST"])
 @jwt_required()
 def spreadsheet_update():
+    log_access("/spreadsheet - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
     assert isinstance(flask.request.json["mapid"], int)
     assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
@@ -236,46 +243,105 @@ def spreadsheet_update():
 
 @app.route("/spreadsheet", methods=["GET"])
 @jwt_required(optional=True)
-def spreadsheet_full():
+def spreadsheet_current_event():
+    log_access("/spreadsheet - GET", bool(current_user))
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
     if not current_user:  # User not logged in
         # Only provide base data
-        sheet = um.get_spreadsheet_all(None)
+        sheet = um.get_spreadsheet_event(None, config["eventtype"], config["edition"])
     else:  # User logged in
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
-        sheet = um.get_spreadsheet_all(userid)
-        finned = build_fin_json()
-        for fin in finned["mapids"]:
-            sheet[fin]["finished"] = True
+        sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
+        # finned = build_fin_json()
+        # for fin in finned["mapids"]:
+        #    sheet[fin]["finished"] = True
 
     # add next play times for each map, regardless of login state
     serverinfo = api.serverinfo.values()
     for mapid, dataset in sheet.items():
-        # api.get_mapinfo()
-        # input seems ok, try to find next time map is played
-        deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
-        # remove all None from servers which do not have map
-        deltas = [i for i in deltas if i[0]]
-        # check if we need to find the earliest play, if map is on multiple servers
-        earliest = deltas[0]
-        if len(deltas) > 1:
-            for d in deltas[1:]:
-                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
-                    d[0][0]
-                ) * 60 + int(d[0][1]):
-                    earliest = d
-        dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
-        dataset["server"] = earliest[1]
+        if config["testing_mode"]:
+            dataset["upcomingIn"] = 1 * 60 + 1
+            dataset["server"] = "TestServer XYZ"
+        else:
+            # api.get_mapinfo()
+            # input seems ok, try to find next time map is played
+            deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
+            # remove all None from servers which do not have map
+            deltas = [i for i in deltas if i[0]]
+            # check if we need to find the earliest play, if map is on multiple servers
+            earliest = deltas[0]
+            # check if we need to find the earliest play, if map is on multiple servers
+            if len(deltas) > 1:
+                for d in deltas[1:]:
+                    if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                        d[0][0]
+                    ) * 60 + int(d[0][1]):
+                        earliest = d
+            dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+            dataset["server"] = earliest[1]
     sheet = dict(sorted(sheet.items()))
-    if not current_user:
-        # return with HTTP 401 to indicate no auth
-        return json.dumps(list(sheet.values())), 200
-    else:
-        return json.dumps(list(sheet.values())), 200
+    return json.dumps(list(sheet.values())), 200
+
+
+@app.route("/spreadsheet/<event>/<edition>", methods=["GET"])
+@jwt_required(optional=True)
+def spreadsheet_hunting(event, edition):
+    log_access(f"/spreadsheet/{event}/{edition} - GET", bool(current_user))
+    if not check_event_edition_legal(event, edition):
+        return "Error: bad path", 404
+    # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
+    # http://localhost:5005/spreadsheet
+    um = UserDataMngr(config, secrets)
+    # Check if user is logged in.
+    if not current_user:  # User not logged in
+        # Only provide base data
+        sheet = um.get_spreadsheet_event(None, config["eventtype"], config["edition"])
+    else:  # User logged in
+        # Add user specific data to the spreadsheet
+        userid = current_user.get_id()
+        sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
+        # finned = build_fin_json()
+        # for fin in finned["mapids"]:
+        #    sheet[fin]["finished"] = True
+
+    sheet = dict(sorted(sheet.items()))
+    return json.dumps(list(sheet.values())), 200
+
+@app.route("/eventstatus")
+def event_status():
+    compend = datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
+    if datetime.datetime.now() < compend:
+        return json.dumps(
+            {
+                "status": "active",
+                "type": config["eventtype"],
+                "edition": config["edition"]
+            }
+        )
+    elif datetime.datetime.now < compend + datetime.timedelta(days=30):
+            return json.dumps(
+                {
+                    "status": "post",
+                    "type": config["eventtype"],
+                    "edition": config["edition"]
+                }
+            )
+    return json.dumps(
+                {
+                    "status": "over"
+                }
+            )
+
+def check_event_edition_legal(event: Any, edition: Any):
+    # check if parameters are valid (this also is input sanitation)
+    if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
+        # Allowed arguments
+        return True
+    return False
 
 
 @app.route("/")
@@ -350,6 +416,22 @@ def is_invalid(
     return False
 
 
+def log_access(route: str, logged_in: bool = False):
+    logger.info(
+        f"{route} accessed by "
+        f"{flask.request.headers.get('Cf-Connecting-Ip', 'unknown-IP')} "
+        f"({flask.request.headers.get('Cf-Ipcountry', 'unknown-origin')}). "
+        f"User status: {logged_in}"
+    )
+    logger.info(
+        flask.request.headers.get("Origin", "")
+        + " - "
+        + flask.request.headers.get("Referer", "")
+        + " - "
+        + flask.request.headers.get("Cf-Connecting-Ip", "")
+    )
+
+
 #                    _
 #                   (_)
 #    _ __ ___   __ _ _ _ __
@@ -367,7 +449,10 @@ with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
     app.secret_key = secrets["flask_secret"]
     app.config["JWT_SECRET_KEY"] = secrets["jwt_secret"]
 
-MAPIDS = (config["min_mapid"], config["max_mapid"])
+MAPIDS = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(
+    config["eventtype"], config["edition"]
+)
+MAPIDS = (min(MAPIDS), max(MAPIDS))
 
 if config["logtype"] == "STDOUT":
     pass
