@@ -256,8 +256,8 @@ def spreadsheet_current_event():
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
         sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
-        finned = build_fin_json()
-        #for fin in finned["mapids"]:
+        # finned = build_fin_json()
+        # for fin in finned["mapids"]:
         #    sheet[fin]["finished"] = True
 
     # add next play times for each map, regardless of login state
@@ -286,6 +286,7 @@ def spreadsheet_current_event():
     sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
 
+
 @app.route("/spreadsheet/<event>/<edition>", methods=["GET"])
 @jwt_required(optional=True)
 def spreadsheet_hunting(event, edition):
@@ -303,13 +304,37 @@ def spreadsheet_hunting(event, edition):
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
         sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
-        finned = build_fin_json()
-        #for fin in finned["mapids"]:
+        # finned = build_fin_json()
+        # for fin in finned["mapids"]:
         #    sheet[fin]["finished"] = True
 
     sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
 
+@app.route("/eventstatus")
+def event_status():
+    compend = datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
+    if datetime.datetime.now() < compend:
+        return json.dumps(
+            {
+                "status": "active",
+                "type": config["eventtype"],
+                "edition": config["edition"]
+            }
+        )
+    elif datetime.datetime.now < compend + datetime.timedelta(days=30):
+            return json.dumps(
+                {
+                    "status": "post",
+                    "type": config["eventtype"],
+                    "edition": config["edition"]
+                }
+            )
+    return json.dumps(
+                {
+                    "status": "over"
+                }
+            )
 
 def check_event_edition_legal(event: Any, edition: Any):
     # check if parameters are valid (this also is input sanitation)
@@ -424,7 +449,9 @@ with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
     app.secret_key = secrets["flask_secret"]
     app.config["JWT_SECRET_KEY"] = secrets["jwt_secret"]
 
-MAPIDS = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(config["eventtype"], config["edition"])
+MAPIDS = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(
+    config["eventtype"], config["edition"]
+)
 MAPIDS = (min(MAPIDS), max(MAPIDS))
 
 if config["logtype"] == "STDOUT":
