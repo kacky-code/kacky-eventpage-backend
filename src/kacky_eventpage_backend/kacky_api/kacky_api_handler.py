@@ -119,12 +119,12 @@ class KackyAPIHandler:
         try:
             if value == "serverinfo":
                 qres = requests.get(
-                    "https://kk.kackiestkacky.com/api/",
+                    "https://kackiestkacky.com/api/",
                     params=request_params,
                 ).json()
             elif value == "userfins":
                 qres = requests.post(
-                    "https://kk.kackiestkacky.com/api/",
+                    "https://kackiestkacky.com/api/",
                     data=request_params,
                 ).json()
             elif value == "leaderboard":
