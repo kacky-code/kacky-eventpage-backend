@@ -7,11 +7,13 @@ class MiscDBOperators(DBConnection):
         self._cursor.execute(query, (kackyid,))
         return self._cursor.fetchone()[0]
 
-    def get_map_kackyIDs_for_event(self, eventtype: str, edition: int, raw: bool = False):
+    def get_map_kackyIDs_for_event(
+        self, eventtype: str, edition: int, raw: bool = False
+    ):
         query = """
-                SELECT kacky_id 
-                FROM maps 
-                INNER JOIN events on maps.kackyevent = events.id 
+                SELECT kacky_id
+                FROM maps
+                INNER JOIN events on maps.kackyevent = events.id
                 WHERE events.type = ? AND events.edition = ?
                 """
         self._cursor.execute(query, (eventtype, edition))

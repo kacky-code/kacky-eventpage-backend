@@ -249,26 +249,28 @@ class UserDataMngr(DBConnection):
             sdict[alarm]["alarm"] = True
         return sdict
 
-    def get_spreadsheet_event(self, userid: Union[str, None], eventtype: str, edition: int):
+    def get_spreadsheet_event(
+        self, userid: Union[str, None], eventtype: str, edition: int
+    ):
         if userid:
             query = """
-                    SELECT 
-                        maps.kacky_id, 
-                        maps.author, 
+                    SELECT
+                        maps.kacky_id,
+                        maps.author,
                         data.*,
                         wr.score AS wr_score,
-                        wr.nickname AS wr_nick, 
+                        wr.nickname AS wr_nick,
                         wr.login AS wr_login
-                    FROM maps 
+                    FROM maps
                     LEFT JOIN (
-                        SELECT 
-                            maps.id, 
-                            spreadsheet.map_diff, 
-                            spreadsheet.map_pb, 
-                            spreadsheet.map_rank, 
+                        SELECT
+                            maps.id,
+                            spreadsheet.map_diff,
+                            spreadsheet.map_pb,
+                            spreadsheet.map_rank,
                             spreadsheet.clip
-                        FROM maps 
-                        LEFT JOIN spreadsheet ON spreadsheet.map_id = maps.id 
+                        FROM maps
+                        LEFT JOIN spreadsheet ON spreadsheet.map_id = maps.id
                         INNER JOIN events ON maps.kackyevent = events.id
                         WHERE spreadsheet.user_id = ? AND events.type = ? AND events.edition = ?
                     ) AS data ON maps.id = data.id
@@ -276,18 +278,20 @@ class UserDataMngr(DBConnection):
                     INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
                     WHERE events.type = ? AND events.edition = ?;
                     """
-            self._cursor.execute(query, (userid, eventtype, edition, eventtype, edition))
+            self._cursor.execute(
+                query, (userid, eventtype, edition, eventtype, edition)
+            )
             # get column names to build a dictionary as result
             columns = [col[0] for col in self._cursor.description]
         else:
             query = """
-                    SELECT 
-                        maps.kacky_id, 
-                        maps.author, 
+                    SELECT
+                        maps.kacky_id,
+                        maps.author,
                         wr.score AS wr_score,
-                        wr.nickname AS wr_nick, 
+                        wr.nickname AS wr_nick,
                         wr.login AS wr_login
-                    FROM maps 
+                    FROM maps
                     LEFT JOIN events ON maps.kackyevent = events.id
                     INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
                     WHERE events.type = ? AND events.edition = ?;
