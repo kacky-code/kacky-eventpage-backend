@@ -205,13 +205,17 @@ def build_fin_json():
         return {"finishes": 0, "mapids": []}
 
 
-@app.route("/spreadsheet", methods=["POST"])
+@app.route("/spreadsheet/<eventtype>/<edition>", methods=["POST"])
 @jwt_required()
-def spreadsheet_update():
+def spreadsheet_update(eventtype: str, edition: int):
     log_access("/spreadsheet - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
-    assert isinstance(flask.request.json["mapid"], int)
-    assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
+    try:
+        assert isinstance(flask.request.json["mapid"], int)
+        assert MAPIDS[0] <= int(flask.request.json["mapid"].split(" ")[0]) <= MAPIDS[1]
+        check_event_edition_legal(eventtype, edition)
+    except AssertionError:
+        return "Error: bad path", 404
 
     um = UserDataMngr(config, secrets)
 
@@ -223,6 +227,8 @@ def spreadsheet_update():
             current_user.get_id(),
             flask.request.json["mapid"],
             flask.request.json["diff"],
+            eventtype,
+            edition,
         )
     if flask.request.json.get("clip", None) is not None:
         if is_invalid(flask.request.json["clip"], str, length=150):
@@ -231,6 +237,8 @@ def spreadsheet_update():
             current_user.get_id(),
             flask.request.json["mapid"],
             flask.request.json["clip"],
+            eventtype,
+            edition,
         )
     if flask.request.json.get("alarm", None) is not None:
         # lazy eval should make sure this is an int in or case
@@ -291,25 +299,29 @@ def spreadsheet_current_event():
 @jwt_required(optional=True)
 def spreadsheet_hunting(event, edition):
     log_access(f"/spreadsheet/{event}/{edition} - GET", bool(current_user))
-    if not check_event_edition_legal(event, edition):
+    try:
+        check_event_edition_legal(event, edition)
+    except AssertionError:
         return "Error: bad path", 404
+
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
     if not current_user:  # User not logged in
         # Only provide base data
-        sheet = um.get_spreadsheet_event(None, config["eventtype"], config["edition"])
+        sheet = um.get_spreadsheet_event(None, event, edition)
     else:  # User logged in
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
-        sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
+        sheet = um.get_spreadsheet_event(userid, event, edition)
         # finned = build_fin_json()
         # for fin in finned["mapids"]:
         #    sheet[fin]["finished"] = True
 
     sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
+
 
 @app.route("/eventstatus")
 def event_status():
@@ -319,29 +331,26 @@ def event_status():
             {
                 "status": "active",
                 "type": config["eventtype"],
-                "edition": config["edition"]
+                "edition": config["edition"],
             }
         )
     elif datetime.datetime.now < compend + datetime.timedelta(days=30):
-            return json.dumps(
-                {
-                    "status": "post",
-                    "type": config["eventtype"],
-                    "edition": config["edition"]
-                }
-            )
-    return json.dumps(
-                {
-                    "status": "over"
-                }
-            )
+        return json.dumps(
+            {
+                "status": "post",
+                "type": config["eventtype"],
+                "edition": config["edition"],
+            }
+        )
+    return json.dumps({"status": "over"})
+
 
 def check_event_edition_legal(event: Any, edition: Any):
     # check if parameters are valid (this also is input sanitation)
     if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
         # Allowed arguments
         return True
-    return False
+    raise AssertionError
 
 
 @app.route("/")

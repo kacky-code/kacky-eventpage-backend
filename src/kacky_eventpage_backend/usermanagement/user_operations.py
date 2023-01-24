@@ -72,7 +72,7 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid,))
         return self._cursor.fetchone()[0] or ""
 
-    def toggle_discord_alarm(self, userid: int, mapid: int):
+    def toggle_discord_alarm(self, userid: int, mapid: str):
         # get currently set alarms
         query = "SELECT alarms FROM user_fields WHERE id = ?"
         self._cursor.execute(query, (userid,))
@@ -81,7 +81,7 @@ class UserDataMngr(DBConnection):
         # toggle alarm in list. For this, make alarms string a list, remove
         # or set the alarm and write it back to DB
         if alarms != "":
-            alarms = dict.fromkeys([int(a) for a in alarms.split(";")])
+            alarms = dict.fromkeys(alarms.split(";"))
         else:
             alarms = {}
         try:
@@ -92,7 +92,7 @@ class UserDataMngr(DBConnection):
             alarms[mapid] = None
 
         # make alarms a string again
-        alarmstr = ";".join(str(a) for a in alarms.keys())
+        alarmstr = ";".join(alarms.keys())
 
         query = "UPDATE user_fields SET alarms = ? WHERE id = ?;"
         self._cursor.execute(query, (alarmstr, userid))
@@ -102,7 +102,7 @@ class UserDataMngr(DBConnection):
         query = "SELECT alarms from user_fields WHERE id = ?;"
         self._cursor.execute(query, (userid,))
         try:
-            return [int(map) for map in self._cursor.fetchone()[0].split(";")]
+            return self._cursor.fetchone()[0].split(";")
         except ValueError:
             return ""
 
@@ -332,32 +332,48 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid, mapid))
         return self._cursor.fetchall()
 
-    def set_map_clip(self, userid: int, mapid: int, clip: str):
+    def set_map_clip(
+        self, userid: int, mapid: int, clip: str, eventtype: str, edition: int
+    ):
         query = """
             INSERT INTO spreadsheet(user_id, map_id, clip)
             VALUES (
                         ?,
-                        (SELECT maps.id FROM maps WHERE maps.kacky_id = ?),
+                        (
+                            SELECT maps.id 
+                            FROM maps 
+                            INNER JOIN events on maps.kackyevent = events.id
+                            WHERE events.type = ? AND events.edition = ?
+                                  AND maps.kacky_id = ?
+                        ),
                         ?
                     )
             ON DUPLICATE KEY
             UPDATE spreadsheet.clip = ?;
         """
-        self._cursor.execute(query, (userid, mapid, clip, clip))
+        self._cursor.execute(query, (userid, eventtype, edition, mapid, clip, clip))
         self._connection.commit()
 
-    def set_map_difficulty(self, userid: int, mapid: int, diff: int):
+    def set_map_difficulty(
+        self, userid: int, mapid: int, diff: int, eventtype: str, edition: int
+    ):
         query = """
                     INSERT INTO spreadsheet(user_id, map_id, map_diff)
                     VALUES (
                                 ?,
-                                (SELECT maps.id FROM maps WHERE maps.kacky_id = ?),
+                                (
+                                    SELECT maps.id 
+                                    FROM maps 
+                                    INNER JOIN events on maps.kackyevent = events.id
+                                    WHERE events.type = ? AND events.edition = ?
+                                          AND maps.kacky_id = ?
+                                ),
                                 ?
                             )
                     ON DUPLICATE KEY
                     UPDATE spreadsheet.map_diff = ?;
                 """
-        self._cursor.execute(query, (userid, mapid, diff, diff))
+        self._cursor.execute(query, (userid, eventtype, edition, mapid, diff, diff))
         self._connection.commit()
 
     def set_password(self, userid: int, newpwd: str):
