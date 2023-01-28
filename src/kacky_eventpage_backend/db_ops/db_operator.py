@@ -19,4 +19,6 @@ class MiscDBOperators(DBConnection):
         self._cursor.execute(query, (eventtype, edition))
         if raw:
             self._cursor.fetchall()
-        return list(map(lambda e: int(e[0]), self._cursor.fetchall()))
+        # cannot map to int because "[v2]" in KR maps breaks it
+        # return list(map(lambda e: int(e[0]), self._cursor.fetchall()))
+        return self._cursor.fetchall()
