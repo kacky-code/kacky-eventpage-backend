@@ -205,15 +205,15 @@ def build_fin_json():
         return {"finishes": 0, "mapids": []}
 
 
-@app.route("/spreadsheet/<eventtype>/<edition>", methods=["POST"])
+@app.route("/spreadsheet/<eventtype>", methods=["POST"])
 @jwt_required()
-def spreadsheet_update(eventtype: str, edition: int):
-    log_access("/spreadsheet - POST", bool(current_user))
+def spreadsheet_update(eventtype: str):
+    log_access(f"/spreadsheet/{eventtype} - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
     try:
-        assert isinstance(flask.request.json["mapid"], int)
-        assert MAPIDS[0] <= int(flask.request.json["mapid"].split(" ")[0]) <= MAPIDS[1]
-        check_event_edition_legal(eventtype, edition)
+        assert isinstance(flask.request.json["mapid"], str)
+        # assert MAPIDS[0] <= int(flask.request.json["mapid"].split(" ")[0]) <= MAPIDS[1]
+        check_event_edition_legal(eventtype, "1")
     except AssertionError:
         return "Error: bad path", 404
 
@@ -228,7 +228,6 @@ def spreadsheet_update(eventtype: str, edition: int):
             flask.request.json["mapid"],
             flask.request.json["diff"],
             eventtype,
-            edition,
         )
     if flask.request.json.get("clip", None) is not None:
         if is_invalid(flask.request.json["clip"], str, length=150):
@@ -238,13 +237,14 @@ def spreadsheet_update(eventtype: str, edition: int):
             flask.request.json["mapid"],
             flask.request.json["clip"],
             eventtype,
-            edition,
         )
     if flask.request.json.get("alarm", None) is not None:
         # lazy eval should make sure this is an int in or case
         if is_invalid(flask.request.json["alarm"], int, vrange=MAPIDS):
             return return_bad_value("discord alarm toggle")
-        um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
+        um.toggle_discord_alarm(
+            current_user.get_id(), flask.request.json["mapid"], eventtype
+        )
 
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
@@ -334,7 +334,7 @@ def event_status():
                 "edition": config["edition"],
             }
         )
-    elif datetime.datetime.now < compend + datetime.timedelta(days=30):
+    elif datetime.datetime.now() < compend + datetime.timedelta(days=30):
         return json.dumps(
             {
                 "status": "post",

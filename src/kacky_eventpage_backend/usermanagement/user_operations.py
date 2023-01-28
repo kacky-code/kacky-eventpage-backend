@@ -72,7 +72,7 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid,))
         return self._cursor.fetchone()[0] or ""
 
-    def toggle_discord_alarm(self, userid: int, mapid: str):
+    def toggle_discord_alarm(self, userid: int, mapid: str, eventtype: int):
         # get currently set alarms
         query = "SELECT alarms FROM user_fields WHERE id = ?"
         self._cursor.execute(query, (userid,))
@@ -324,56 +324,52 @@ class UserDataMngr(DBConnection):
         # Add discord alarms to the mix
         discord_alarms = self.get_discord_alarms(userid)
         for alarm in discord_alarms:
+            if alarm == "":
+                continue
             sdict[alarm]["alarm"] = True
         return sdict
 
-    def get_spreadsheet_line(self, userid: int, mapid: int):
+    def get_spreadsheet_line(self, userid: int, mapid: str):
         query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
         self._cursor.execute(query, (userid, mapid))
         return self._cursor.fetchall()
 
-    def set_map_clip(
-        self, userid: int, mapid: int, clip: str, eventtype: str, edition: int
-    ):
+    def set_map_clip(self, userid: int, mapid: str, clip: str, eventtype: str):
         query = """
             INSERT INTO spreadsheet(user_id, map_id, clip)
             VALUES (
                         ?,
                         (
-                            SELECT maps.id 
-                            FROM maps 
+                            SELECT maps.id
+                            FROM maps
                             INNER JOIN events on maps.kackyevent = events.id
-                            WHERE events.type = ? AND events.edition = ?
-                                  AND maps.kacky_id = ?
+                            WHERE events.type = ? AND maps.kacky_id = ?
                         ),
                         ?
                     )
             ON DUPLICATE KEY
             UPDATE spreadsheet.clip = ?;
         """
-        self._cursor.execute(query, (userid, eventtype, edition, mapid, clip, clip))
+        self._cursor.execute(query, (userid, eventtype, mapid, clip, clip))
         self._connection.commit()
 
-    def set_map_difficulty(
-        self, userid: int, mapid: int, diff: int, eventtype: str, edition: int
-    ):
+    def set_map_difficulty(self, userid: int, mapid: str, diff: int, eventtype: str):
         query = """
                     INSERT INTO spreadsheet(user_id, map_id, map_diff)
                     VALUES (
                                 ?,
                                 (
-                                    SELECT maps.id 
-                                    FROM maps 
+                                    SELECT maps.id
+                                    FROM maps
                                     INNER JOIN events on maps.kackyevent = events.id
-                                    WHERE events.type = ? AND events.edition = ?
-                                          AND maps.kacky_id = ?
+                                    WHERE events.type = ? AND maps.kacky_id = ?
                                 ),
                                 ?
                             )
                     ON DUPLICATE KEY
                     UPDATE spreadsheet.map_diff = ?;
                 """
-        self._cursor.execute(query, (userid, eventtype, edition, mapid, diff, diff))
+        self._cursor.execute(query, (userid, eventtype, mapid, diff, diff))
         self._connection.commit()
 
     def set_password(self, userid: int, newpwd: str):
