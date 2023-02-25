@@ -105,7 +105,11 @@ def login_user_api():
 
     if login_success:
         access_token = create_access_token(identity=user)
-        return flask.jsonify(access_token=access_token), 200
+        expires = datetime.datetime.now() + datetime.timedelta(days=100)
+        return (
+            flask.jsonify(access_token=access_token, expires=expires.timestamp()),
+            200,
+        )
 
     return flask.jsonify(flask_restful.http_status_message(401)), 401
 
@@ -113,7 +117,7 @@ def login_user_api():
 @app.route("/usermgnt", methods=["POST"])
 @jwt_required()
 def usermanagement():
-    log_access("/usermgnt - GET", bool(current_user))
+    log_access("/usermgnt - POST", bool(current_user))
     um = UserDataMngr(config, secrets)
     if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
@@ -143,7 +147,7 @@ def usermanagement():
 @app.route("/usermgnt", methods=["GET"])
 @jwt_required()
 def get_user_data():
-    log_access("/usermgnt - POST", bool(current_user))
+    log_access("/usermgnt - GET", bool(current_user))
     um = UserDataMngr(config, secrets)
     userid = current_user.get_id()
     tmnf = um.get_tmnf_login(userid)
@@ -190,10 +194,14 @@ def json_serverdata_provider():
 @app.route("/fin")
 @jwt_required(optional=True)
 def build_fin_json():
+    log_access("/fin - GET", bool(current_user))
     if not current_user:  # User is not logged in
         return {"finishes": 0, "mapids": []}
     um = UserDataMngr(config, secrets)
-    tm_login = um.get_tm20_login(current_user.get_id())
+    if config["eventtype"] == "KK":
+        tm_login = um.get_tmnf_login(current_user.get_id())
+    elif config["eventtype"] == "KR":
+        tm_login = um.get_tm20_login(current_user.get_id())
     try:
         if tm_login != "":
             fins = api.get_fin_info(tm_login)["finishes"]
@@ -249,8 +257,8 @@ def spreadsheet_update(eventtype: str):
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
-@app.route("/spreadsheet", methods=["GET"])
-@jwt_required(optional=True)
+# @app.route("/spreadsheet", methods=["GET"])
+# @jwt_required(optional=True)
 def spreadsheet_current_event():
     log_access("/spreadsheet - GET", bool(current_user))
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
@@ -319,13 +327,19 @@ def spreadsheet_hunting(event, edition):
         # for fin in finned["mapids"]:
         #    sheet[fin]["finished"] = True
 
-    sheet = dict(sorted(sheet.items()))
+    # sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
 
 
 @app.route("/eventstatus")
 def event_status():
-    compend = datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
+    log_access("/eventstatus - GET", None)
+    if config["testing_mode"]:
+        compend = datetime.datetime.strptime(
+            config["testing_compend"], "%d.%m.%Y %H:%M"
+        )
+    else:
+        compend = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M")
     if datetime.datetime.now() < compend:
         return json.dumps(
             {
@@ -345,9 +359,47 @@ def event_status():
     return json.dumps({"status": "over"})
 
 
+@app.route("/pb/<event>")
+@jwt_required()
+def get_user_pbs(event: str):
+    log_access(f"/pb/{event} - GET", bool(current_user))
+    import requests
+
+    check_event_edition_legal(event, "1")
+    um = UserDataMngr(config, secrets)
+    if event == "kk":
+        login = um.get_tmnf_login(current_user.get_id())
+    else:
+        login = um.get_tm20_login(current_user.get_id())
+    r = requests.get(f"https://records.kacky.info/pb/{login}/{event}")
+    if not r.ok:
+        flask.jsonify("An Error occured"), 400
+    return r.text
+
+
+@app.route("/performance/<event>")
+@jwt_required()
+def get_user_performance(event: str):
+    log_access(f"/performance/{event} - GET", bool(current_user))
+    import requests
+
+    check_event_edition_legal(event, "1")
+    um = UserDataMngr(config, secrets)
+    if event == "kk":
+        login = um.get_tmnf_login(current_user.get_id())
+    else:
+        login = um.get_tm20_login(current_user.get_id())
+    r = requests.get(f"https://records.kacky.info/performance/{login}/{event}")
+    if not r.ok:
+        flask.jsonify("An Error occured"), 400
+    return r.text
+
+
 def check_event_edition_legal(event: Any, edition: Any):
     # check if parameters are valid (this also is input sanitation)
     if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
+        if event.upper() == "KK" and edition == 8:
+            raise AssertionError
         # Allowed arguments
         return True
     raise AssertionError
@@ -428,16 +480,8 @@ def is_invalid(
 def log_access(route: str, logged_in: bool = False):
     logger.info(
         f"{route} accessed by "
-        f"{flask.request.headers.get('Cf-Connecting-Ip', 'unknown-IP')} "
-        f"({flask.request.headers.get('Cf-Ipcountry', 'unknown-origin')}). "
+        f"{flask.request.headers.get('X-Forwarded-For', 'unknown-forward')}. "
         f"User status: {logged_in}"
-    )
-    logger.info(
-        flask.request.headers.get("Origin", "")
-        + " - "
-        + flask.request.headers.get("Referer", "")
-        + " - "
-        + flask.request.headers.get("Cf-Connecting-Ip", "")
     )
 
 
@@ -465,7 +509,7 @@ MAPIDS = (min(MAPIDS), max(MAPIDS))
 
 if config["logtype"] == "STDOUT":
     pass
-    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(format="%(name)s - %(levelname)s - %(message)s")
 # YES, this totally ignores threadsafety. On the other hand, it is quite safe to assume
 # that it only will occur very rarely that things get logged at the same time in this
 # usecase. Furthermore, logging is absolutely not critical in this case and mostly used
