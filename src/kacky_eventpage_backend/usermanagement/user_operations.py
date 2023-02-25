@@ -326,7 +326,12 @@ class UserDataMngr(DBConnection):
         for alarm in discord_alarms:
             if alarm == "":
                 continue
-            sdict[alarm]["alarm"] = True
+            try:
+                sdict[alarm]["alarm"] = True
+            except KeyError:
+                # Do the dirty pass, but this most likely happens because user tries
+                # to load an edition that has no discord alarms set.
+                pass
         return sdict
 
     def get_spreadsheet_line(self, userid: int, mapid: str):
