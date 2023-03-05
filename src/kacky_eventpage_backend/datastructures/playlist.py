@@ -1,6 +1,8 @@
 import datetime
 from typing import Dict, List, Union
 
+# from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
+
 
 class PlaylistHandler:
     playlist = []
@@ -10,7 +12,11 @@ class PlaylistHandler:
         self, config: Dict[str, Union[str, list, int]], playlist: List[int] = None
     ):
         if playlist is None:
-            self.playlist = list(range(config["min_mapid"], config["max_mapid"] + 1))
+            # mapids = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(
+            #     config["eventtype"], config["edition"]
+            # )
+            mapids = [-151, -200]
+            self.playlist = list(range(min(mapids), max(mapids) + 1))
             # make a copy
             self.original_list = self.playlist[:]
         else:

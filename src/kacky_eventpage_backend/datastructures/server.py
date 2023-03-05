@@ -29,8 +29,10 @@ class ServerInfo:
 
     def update_info(self, new_info: dict):
         self.jukebox = new_info["jukebox"]
-        self.cur_map_name = new_info["current_map"]
-        self.cur_map = int(new_info["current_map"].split("#")[-1].split(" ")[0])
+        self.cur_map_name = new_info["current_map"].replace("\u2013", "-")
+        self.cur_map = int(
+            new_info["current_map"].split("#")[-1].split(" ")[0].replace("\u2013", "-")
+        )
         self.recent = new_info["recently_played"]
         self.last_update = datetime.datetime.now()
         self.timeplayed_internal = int(new_info["time_played"])

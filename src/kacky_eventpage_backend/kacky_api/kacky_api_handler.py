@@ -60,17 +60,35 @@ class KackyAPIHandler:
     def _update_server_info(self):
         krdata = self._do_api_request("serverinfo")
 
-        for server in krdata.keys():
-            self.logger.debug(f"updating server '{server}'")
-            d = krdata[server]
-            self.logger.debug(f"new data: {d}")
+        for sid, serverdata in krdata.items():
+            self.logger.debug(f"updating server '{sid}'")
+            # sanity checking
+            if "error" in serverdata:
+                self.logger.error(
+                    f"updating server '{sid}' - ERROR: {serverdata['error']}"
+                )
+                continue
+
+            if (
+                serverdata["name"] is False
+                or serverdata["current_map"] is False
+                or serverdata["time_played"] is False
+            ):
+                self.logger.error(
+                    f"updating server '{sid}' - ERROR: a field contained a bad value"
+                )
+                continue
+
+            self.logger.debug(f"new data: {serverdata}")
             # check for first run
-            if server not in self._serverinfo:
+            if serverdata["name"] not in self._serverinfo:
                 # this is the first run, need to build objects
-                self._serverinfo[server] = ServerInfo(TMstr(server), self.config)
+                self._serverinfo[serverdata["name"]] = ServerInfo(
+                    TMstr(serverdata["name"]), self.config
+                )
 
             # update existing ServerInfo object
-            self._serverinfo[server].update_info(d)
+            self._serverinfo[serverdata["name"]].update_info(serverdata)
 
         self._last_update["serverinfo"] = dt.now()
 
@@ -121,12 +139,12 @@ class KackyAPIHandler:
                 qres = requests.get(
                     "https://kackiestkacky.com/api/",
                     params=request_params,
-                ).json()
+                )
             elif value == "userfins":
                 qres = requests.post(
                     "https://kackiestkacky.com/api/",
                     data=request_params,
-                ).json()
+                )
             elif value == "leaderboard":
                 qres = ""
                 raise NotImplementedError
@@ -138,8 +156,10 @@ class KackyAPIHandler:
         except ConnectionError as e:
             self.logger.critical(f"Could not connect to Kacky API! {e}")
         except json.decoder.JSONDecodeError as e:
-            self.logger.critical(f"Response from Kacky API is malformed! {e}")
+            self.logger.critical(
+                f"Response from Kacky API is malformed! {qres.text} - {e}"
+            )
 
         # update cache age
         self._last_update[value] = dt.now()
-        return qres
+        return qres.json()
