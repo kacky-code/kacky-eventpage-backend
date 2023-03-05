@@ -313,6 +313,10 @@ class UserDataMngr(DBConnection):
             del mapinfo["wr_login"]
             del mapinfo["wr_nick"]
 
+        for mapinfo in sdict:
+            if mapinfo["wr_score"] == 1800000:
+                mapinfo["wr_score"] = 0
+
         # make kacky_ids the key of a dict containing all the data (do this in
         # an extra step to use `kacky_id` key from the dict instead of some
         # hardcoded array position. Slightly more work, but should be fine

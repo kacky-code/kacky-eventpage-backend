@@ -219,6 +219,7 @@ def spreadsheet_update(eventtype: str):
     log_access(f"/spreadsheet/{eventtype} - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
     try:
+        logger.info(flask.request.json)
         assert isinstance(flask.request.json["mapid"], str)
         # assert MAPIDS[0] <= int(flask.request.json["mapid"].split(" ")[0]) <= MAPIDS[1]
         check_event_edition_legal(eventtype, "1")
@@ -239,7 +240,7 @@ def spreadsheet_update(eventtype: str):
         )
     if flask.request.json.get("clip", None) is not None:
         if is_invalid(flask.request.json["clip"], str, length=150):
-            return return_bad_value("map alarm")
+            return return_bad_value("clip")
         um.set_map_clip(
             current_user.get_id(),
             flask.request.json["mapid"],
@@ -257,8 +258,8 @@ def spreadsheet_update(eventtype: str):
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
-# @app.route("/spreadsheet", methods=["GET"])
-# @jwt_required(optional=True)
+@app.route("/spreadsheet", methods=["GET"])
+@jwt_required(optional=True)
 def spreadsheet_current_event():
     log_access("/spreadsheet - GET", bool(current_user))
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
@@ -285,7 +286,7 @@ def spreadsheet_current_event():
         else:
             # api.get_mapinfo()
             # input seems ok, try to find next time map is played
-            deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
+            deltas = list(map(lambda s: s.find_next_play(int(mapid)), serverinfo))
             # remove all None from servers which do not have map
             deltas = [i for i in deltas if i[0]]
             # check if we need to find the earliest play, if map is on multiple servers
