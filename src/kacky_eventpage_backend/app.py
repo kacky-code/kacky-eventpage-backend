@@ -9,6 +9,7 @@ from typing import Any, Tuple
 import flask
 import flask_restful
 import yaml
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
@@ -552,6 +553,18 @@ app.config["JWT_HEADER_TYPE"] = "Bearer"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
     days=100
 )  # Why 100? idk, looks cool
+
+# Update data from kacky API every minute
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    func=api._update_server_info,
+    trigger="interval",
+    seconds=60,
+    max_instances=1,
+)
+# start scheduler
+api._update_server_info()
+scheduler.start()
 
 logger.info("Starting application.")
 if "gunicorn" not in os.environ.get("SERVER_SOFTWARE", ""):
