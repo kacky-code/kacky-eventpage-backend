@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime as dt
 from datetime import timedelta as td
+from threading import Lock
 from typing import Any, Dict
 
 import requests as requests
@@ -16,6 +17,7 @@ class KackyAPIHandler:
     _serverinfo = {}
     _leaderboard = []
     _last_update = {}
+    _serverinfo_mutex = Lock()
 
     def __init__(self, config: dict, secrets: dict):
         """
@@ -32,8 +34,8 @@ class KackyAPIHandler:
 
     def __getattr__(self, item):
         if item == "serverinfo":
-            if self._cache_update_required("serverinfo", 60):
-                self._update_server_info()
+            # if self._cache_update_required("serverinfo", 60):
+            #     self._update_server_info()
             return self._serverinfo
         if item == "leaderboard":
             if self._cache_update_required("leaderboard", 600):
@@ -58,6 +60,9 @@ class KackyAPIHandler:
             return 1
 
     def _update_server_info(self):
+        # if not self._serverinfo_mutex.acquire(blocking=False):
+        #     self.logger.debug("mutex for update is held, update already in progress")
+        #     return
         krdata = self._do_api_request("serverinfo")
 
         for sid, serverdata in krdata.items():
@@ -91,6 +96,7 @@ class KackyAPIHandler:
             self._serverinfo[serverdata["name"]].update_info(serverdata)
 
         self._last_update["serverinfo"] = dt.now()
+        # self._serverinfo_mutex.release()
 
     def get_fin_info(self, tmlogin):
         findata = self._do_api_request(
@@ -139,6 +145,7 @@ class KackyAPIHandler:
                 qres = requests.get(
                     "https://kackiestkacky.com/api/",
                     params=request_params,
+                    timeout=15,
                 )
             elif value == "userfins":
                 qres = requests.post(
