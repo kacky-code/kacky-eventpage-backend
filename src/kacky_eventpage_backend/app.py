@@ -397,11 +397,83 @@ def get_user_performance(event: str):
     return r.text
 
 
+@app.route("/event/<login>/finned")
+def get_finished_maps_event(login: str):
+    assert isinstance(login, str)
+    log_access(f"/event/{login}/finned - GET", bool(current_user))
+
+    import requests
+
+    r = requests.get(f"https://records.kacky.info/pb/{login}/kk")
+    scores = {
+        k: v
+        for k, v in r.json().items()
+        if int(MAPIDS[1][0]) <= int(k) <= int(MAPIDS[0][0])
+    }
+    if flask.request.args.get("string", default=0, type=str) == "ids":
+        return ", ".join(scores.keys())
+    if flask.request.args.get("string", default=0, type=str) == "ranks":
+        return ", ".join([f"{mid} ({s['kacky_rank']})" for mid, s in scores.items()])
+    if flask.request.args.get("string", default=0, type=str) == "scores":
+        return ", ".join([f"{mid} ({s['score'] / 1000}s)" for mid, s in scores.items()])
+    return scores
+
+
+@app.route("/event/<login>/unfinned")
+def get_unfinished_maps_event(login: str):
+    assert isinstance(login, str)
+    log_access(f"/event/{login}/finned - GET", bool(current_user))
+
+    import requests
+
+    r = requests.get(f"https://records.kacky.info/pb/{login}/kk")
+    mapids = [
+        m
+        for m in range(int(MAPIDS[0][0]), int(MAPIDS[1][0]) - 1, -1)
+        if str(m) not in r.json()
+    ]
+    if flask.request.args.get("string", default=0, type=int):
+        return ", ".join([f"{m}" for m in mapids])
+    return mapids
+
+
+@app.route("/event/<login>/nextunfinned")
+def get_next_unfinned_event(login: str):
+    assert isinstance(login, str)
+    logger.info("get_next_unfinned_event - GET")
+    unfinned = get_unfinished_maps_event(login)
+    serverinfo = api.serverinfo.values()
+    result = {}
+    for unf in unfinned:
+        # input seems ok, try to find next time map is played
+        deltas = list(map(lambda s: s.find_next_play(int(unf)), serverinfo))
+        # remove all None from servers which do not have map
+        deltas = [i for i in deltas if i[0]]
+        # check if we need to find the earliest play, if map is on multiple servers
+        earliest = deltas[0]
+        # check if we need to find the earliest play, if map is on multiple servers
+        if len(deltas) > 1:
+            for d in deltas[1:]:
+                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                    d[0][0]
+                ) * 60 + int(d[0][1]):
+                    earliest = d
+        result[unf] = {}
+        result[unf]["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+        result[unf]["server"] = earliest[1]
+    # find shortest wait time
+    mintime = min([v["upcomingIn"] for v in result.values()])
+    up_maps = {k: v for k, v in result.items() if v["upcomingIn"] == mintime}
+    if flask.request.args.get("simochat", default=0, type=int):
+        msg = f"Next unfinished map{'s' if len(up_maps) > 1 else ''} in {mintime} minutes: "
+        maplist = ", ".join([f"{k} (Server {v['server']})" for k, v in up_maps.items()])
+        return msg + maplist
+    return up_maps
+
+
 def check_event_edition_legal(event: Any, edition: Any):
     # check if parameters are valid (this also is input sanitation)
     if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
-        if event.upper() == "KK" and edition == 8:
-            raise AssertionError
         # Allowed arguments
         return True
     raise AssertionError
