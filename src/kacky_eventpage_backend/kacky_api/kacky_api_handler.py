@@ -166,6 +166,8 @@ class KackyAPIHandler:
             self.logger.critical(
                 f"Response from Kacky API is malformed! {qres.text} - {e}"
             )
+        except Exception as e:
+            self.logger.critical(f"Error connecting to Kacky API! {e}")
 
         # update cache age
         self._last_update[value] = dt.now()
