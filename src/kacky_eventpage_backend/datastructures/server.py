@@ -3,12 +3,14 @@ from pathlib import Path
 
 import yaml
 
+# from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
+from tmformatresolver import TMString
+
 from kacky_eventpage_backend.datastructures.playlist import PlaylistHandler
-from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
 
 
 class ServerInfo:
-    def __init__(self, name: TMstr, config: dict):
+    def __init__(self, name: TMString, config: dict):
         self.name = name
         self.config = config
         # assume server number is last part of the string
