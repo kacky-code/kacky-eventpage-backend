@@ -1,6 +1,15 @@
+import datetime
+import random
+import string
 from typing import Union
 
 from kacky_eventpage_backend.db_ops.db_base import DBConnection
+
+
+def token_generator(length: int):
+    return "".join(
+        random.choice(string.ascii_lowercase + string.digits) for _ in range(length)
+    )
 
 
 class UserDataMngr(DBConnection):
@@ -250,13 +259,28 @@ class UserDataMngr(DBConnection):
         return sdict
 
     def get_spreadsheet_event(
-        self, userid: Union[str, None], eventtype: str, edition: int
+        self, userid: Union[str, None], eventtype: str, edition: Union[int, str]
     ):
+        if edition.isdigit():
+            editions_where_clause = "AND events.edition = ?"
+            if userid:
+                query_params = (userid, eventtype, edition, eventtype, edition)
+            else:
+                query_params = (eventtype, edition)
+        elif edition == "all":
+            editions_where_clause = ""
+            if userid:
+                query_params = (userid, eventtype, eventtype)
+            else:
+                query_params = (eventtype,)
+        else:
+            raise ValueError("Bad value for edition!")
         if userid:
-            query = """
+            query = f"""
                     SELECT
                         maps.kacky_id,
                         maps.author,
+                        maps.difficulty as rating,
                         data.*,
                         wr.score AS wr_score,
                         wr.nickname AS wr_nick,
@@ -272,31 +296,32 @@ class UserDataMngr(DBConnection):
                         FROM maps
                         LEFT JOIN spreadsheet ON spreadsheet.map_id = maps.id
                         INNER JOIN events ON maps.kackyevent = events.id
-                        WHERE spreadsheet.user_id = ? AND events.type = ? AND events.edition = ?
+                        WHERE spreadsheet.user_id = ? AND events.type = ? {editions_where_clause}
                     ) AS data ON maps.id = data.id
                     LEFT JOIN events ON maps.kackyevent = events.id
                     INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
-                    WHERE events.type = ? AND events.edition = ?;
+                    WHERE events.type = ? {editions_where_clause}
+                    ORDER BY CAST(maps.kacky_id AS INTEGER);
                     """
-            self._cursor.execute(
-                query, (userid, eventtype, edition, eventtype, edition)
-            )
+            self._cursor.execute(query, query_params)
             # get column names to build a dictionary as result
             columns = [col[0] for col in self._cursor.description]
         else:
-            query = """
+            query = f"""
                     SELECT
                         maps.kacky_id,
                         maps.author,
+                        maps.difficulty as rating,
                         wr.score AS wr_score,
                         wr.nickname AS wr_nick,
                         wr.login AS wr_login
                     FROM maps
                     LEFT JOIN events ON maps.kackyevent = events.id
                     INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
-                    WHERE events.type = ? AND events.edition = ?;
+                    WHERE events.type = ? {editions_where_clause}
+                    ORDER BY CAST(maps.kacky_id AS INTEGER);
                     """
-            self._cursor.execute(query, (eventtype, edition))
+            self._cursor.execute(query, query_params)
             # get column names to build a dictionary as result
             columns = [col[0] for col in self._cursor.description]
         qres = self._cursor.fetchall()
@@ -390,6 +415,60 @@ class UserDataMngr(DBConnection):
         query = "UPDATE kack_users SET mail = ? WHERE id = ?;"
         self._cursor.execute(query, (newmail, userid))
         self._connection.commit()
+
+    def set_reset_token(self, user: str, cryptmail: str):
+        # do opportunistic clean-up first. remove tokens older than 2 hours
+        cleanup_query = (
+            "DELETE FROM reset_tokens WHERE timestamp < (NOW() - INTERVAL 2 HOUR);"
+        )
+        self._cursor.execute(cleanup_query, ())
+        userid_query = "SELECT id FROM kack_users WHERE mail = ? and username = ?;"
+        self._cursor.execute(userid_query, (cryptmail, user))
+        userid = self._cursor.fetchall()
+        if len(userid) == 0 or len(userid) > 1:
+            return -1
+        # if user has active tokens, remove them
+        cleanup_query = "DELETE FROM reset_tokens WHERE user_id = ?;"
+        self._cursor.execute(cleanup_query, (userid[0][0],))
+
+        # generate token
+        token_ok = False
+        resettoken = token_generator(6)
+        # if token already exists, generate a new one
+        while not token_ok:
+            check_query = "SELECT token FROM reset_tokens WHERE token = ?;"
+            self._cursor.execute(check_query, (resettoken,))
+            if self._cursor.fetchall() == []:
+                # token unique
+                token_ok = True
+            resettoken = token_generator(6)
+
+        store_query = (
+            "INSERT INTO reset_tokens(timestamp, user_id, token) VALUES (?, ?, ?);"
+        )
+        self._cursor.execute(
+            store_query,
+            (
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                userid[0][0],
+                resettoken,
+            ),
+        )
+        self._connection.commit()
+        return resettoken
+
+    def reset_password_with_token(self, token: str, cryptpw: str):
+        # check if token exists
+        token_check_query = "SELECT user_id FROM reset_tokens WHERE token = ?;"
+        self._cursor.execute(token_check_query, (token,))
+        userid = self._cursor.fetchall()
+        if len(userid) == 0 or len(userid) > 1:
+            return False
+        self.set_password(userid[0][0], cryptpw)
+        token_delete_query = "DELETE FROM reset_tokens WHERE token = ?;"
+        self._cursor.execute(token_delete_query, (token,))
+        self._connection.commit()
+        return True
 
     def fetchone_and_only_one(self):
         qres = self._cursor.fetchall()

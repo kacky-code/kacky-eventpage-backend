@@ -7,9 +7,11 @@ from typing import Any, Dict
 
 import requests as requests
 
+# from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
+from tmformatresolver import TMString
+
 from kacky_eventpage_backend.datastructures.server import ServerInfo
 from kacky_eventpage_backend.kacky_api.testing_data import TESTING_DATA
-from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
 
 
 class KackyAPIHandler:
@@ -63,6 +65,9 @@ class KackyAPIHandler:
         # if not self._serverinfo_mutex.acquire(blocking=False):
         #     self.logger.debug("mutex for update is held, update already in progress")
         #     return
+        compend = dt.strptime(self.config["compend"], "%d.%m.%Y %H:%M")
+        if compend < dt.now():
+            return
         krdata = self._do_api_request("serverinfo")
 
         for sid, serverdata in krdata.items():
@@ -89,7 +94,7 @@ class KackyAPIHandler:
             if serverdata["name"] not in self._serverinfo:
                 # this is the first run, need to build objects
                 self._serverinfo[serverdata["name"]] = ServerInfo(
-                    TMstr(serverdata["name"]), self.config
+                    TMString(serverdata["name"]), self.config
                 )
 
             # update existing ServerInfo object
@@ -123,7 +128,7 @@ class KackyAPIHandler:
             return
 
         for idx, _ in enumerate(krdata):
-            krdata[idx][1] = TMstr(krdata[idx][1]).html
+            krdata[idx][1] = TMString(krdata[idx][1]).html
 
         self._leaderboard = krdata
         self._last_update["leaderboard"] = dt.now()
