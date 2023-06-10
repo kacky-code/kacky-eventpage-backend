@@ -2,13 +2,16 @@ import json
 import logging
 from datetime import datetime as dt
 from datetime import timedelta as td
+from threading import Lock
 from typing import Any, Dict
 
 import requests as requests
 
+# from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
+from tmformatresolver import TMString
+
 from kacky_eventpage_backend.datastructures.server import ServerInfo
 from kacky_eventpage_backend.kacky_api.testing_data import TESTING_DATA
-from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
 
 
 class KackyAPIHandler:
@@ -16,6 +19,7 @@ class KackyAPIHandler:
     _serverinfo = {}
     _leaderboard = []
     _last_update = {}
+    _serverinfo_mutex = Lock()
 
     def __init__(self, config: dict, secrets: dict):
         """
@@ -32,8 +36,8 @@ class KackyAPIHandler:
 
     def __getattr__(self, item):
         if item == "serverinfo":
-            if self._cache_update_required("serverinfo", 60):
-                self._update_server_info()
+            # if self._cache_update_required("serverinfo", 60):
+            #     self._update_server_info()
             return self._serverinfo
         if item == "leaderboard":
             if self._cache_update_required("leaderboard", 600):
@@ -58,21 +62,46 @@ class KackyAPIHandler:
             return 1
 
     def _update_server_info(self):
+        # if not self._serverinfo_mutex.acquire(blocking=False):
+        #     self.logger.debug("mutex for update is held, update already in progress")
+        #     return
+        compend = dt.strptime(self.config["compend"], "%d.%m.%Y %H:%M")
+        if compend < dt.now():
+            return
         krdata = self._do_api_request("serverinfo")
 
-        for server in krdata.keys():
-            self.logger.debug(f"updating server '{server}'")
-            d = krdata[server]
-            self.logger.debug(f"new data: {d}")
+        for sid, serverdata in krdata.items():
+            self.logger.debug(f"updating server '{sid}'")
+            # sanity checking
+            if "error" in serverdata:
+                self.logger.error(
+                    f"updating server '{sid}' - ERROR: {serverdata['error']}"
+                )
+                continue
+
+            if (
+                serverdata["name"] is False
+                or serverdata["current_map"] is False
+                or serverdata["time_played"] is False
+            ):
+                self.logger.error(
+                    f"updating server '{sid}' - ERROR: a field contained a bad value"
+                )
+                continue
+
+            self.logger.debug(f"new data: {serverdata}")
             # check for first run
-            if server not in self._serverinfo:
+            if serverdata["name"] not in self._serverinfo:
                 # this is the first run, need to build objects
-                self._serverinfo[server] = ServerInfo(TMstr(server), self.config)
+                self._serverinfo[serverdata["name"]] = ServerInfo(
+                    TMString(serverdata["name"]), self.config
+                )
 
             # update existing ServerInfo object
-            self._serverinfo[server].update_info(d)
+            self._serverinfo[serverdata["name"]].update_info(serverdata)
 
         self._last_update["serverinfo"] = dt.now()
+        # self._serverinfo_mutex.release()
 
     def get_fin_info(self, tmlogin):
         findata = self._do_api_request(
@@ -99,7 +128,7 @@ class KackyAPIHandler:
             return
 
         for idx, _ in enumerate(krdata):
-            krdata[idx][1] = TMstr(krdata[idx][1]).html
+            krdata[idx][1] = TMString(krdata[idx][1]).html
 
         self._leaderboard = krdata
         self._last_update["leaderboard"] = dt.now()
@@ -121,12 +150,13 @@ class KackyAPIHandler:
                 qres = requests.get(
                     "https://kackiestkacky.com/api/",
                     params=request_params,
-                ).json()
+                    timeout=15,
+                )
             elif value == "userfins":
                 qres = requests.post(
                     "https://kackiestkacky.com/api/",
                     data=request_params,
-                ).json()
+                )
             elif value == "leaderboard":
                 qres = ""
                 raise NotImplementedError
@@ -138,8 +168,12 @@ class KackyAPIHandler:
         except ConnectionError as e:
             self.logger.critical(f"Could not connect to Kacky API! {e}")
         except json.decoder.JSONDecodeError as e:
-            self.logger.critical(f"Response from Kacky API is malformed! {e}")
+            self.logger.critical(
+                f"Response from Kacky API is malformed! {qres.text} - {e}"
+            )
+        except Exception as e:
+            self.logger.critical(f"Error connecting to Kacky API! {e}")
 
         # update cache age
         self._last_update[value] = dt.now()
-        return qres
+        return qres.json()
