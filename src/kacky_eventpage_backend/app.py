@@ -8,7 +8,9 @@ from typing import Any, Tuple
 
 import flask
 import flask_restful
+import requests
 import yaml
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
@@ -17,9 +19,11 @@ from flask_jwt_extended import (
     get_jwt,
     jwt_required,
 )
+from tmformatresolver import TMString
 
 from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
+from kacky_eventpage_backend.mailsender import MailSender
 from kacky_eventpage_backend.usermanagement.token_blacklist import TokenBlacklist
 from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
 from kacky_eventpage_backend.usermanagement.user_session_handler import User
@@ -31,7 +35,8 @@ CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
 
 
-def get_pagedata():
+def get_pagedata(login: str = ""):
+    # use "$" as default login, because that char is not a legal login (at least in tmnf)
     curtime = datetime.datetime.now()
     if config["testing_mode"]:
         ttl = (
@@ -45,7 +50,18 @@ def get_pagedata():
     response = {"servers": [], "comptimeLeft": timeleft}
 
     mdb = MiscDBOperators(config, secrets)
-    fins = build_fin_json()
+    fins = {}
+    if login != "":
+        if config["eventtype"] == "KK":
+            r = requests.get(
+                f"https://records.kacky.info/pb/{login}/kk/{config['edition']}"
+            )
+        else:
+            r = requests.get(
+                f"https://records.kacky.info/pb/{login}/kr/{config['edition']}"
+            )
+        if r.ok:
+            fins = r.json()
 
     for name, val in api.serverinfo.items():
         tmpdict = {}
@@ -56,7 +72,7 @@ def get_pagedata():
             mapdict = {
                 "number": m,
                 "author": mdb.get_map_author(m),
-                "finished": (m in fins["mapids"]),
+                "finished": str(m) in fins,
             }
             tmpdict["maps"].append(mapdict)
         tmpdict["timeLimit"] = val.timelimit
@@ -105,7 +121,11 @@ def login_user_api():
 
     if login_success:
         access_token = create_access_token(identity=user)
-        return flask.jsonify(access_token=access_token), 200
+        expires = datetime.datetime.now() + datetime.timedelta(days=100)
+        return (
+            flask.jsonify(access_token=access_token, expires=expires.timestamp()),
+            200,
+        )
 
     return flask.jsonify(flask_restful.http_status_message(401)), 401
 
@@ -113,7 +133,7 @@ def login_user_api():
 @app.route("/usermgnt", methods=["POST"])
 @jwt_required()
 def usermanagement():
-    log_access("/usermgnt - GET", bool(current_user))
+    log_access("/usermgnt - POST", bool(current_user))
     um = UserDataMngr(config, secrets)
     if flask.request.json.get("tmnf", None) is not None:
         if is_invalid(flask.request.json["tmnf"], str, length=50):
@@ -143,13 +163,60 @@ def usermanagement():
 @app.route("/usermgnt", methods=["GET"])
 @jwt_required()
 def get_user_data():
-    log_access("/usermgnt - POST", bool(current_user))
+    log_access("/usermgnt - GET", bool(current_user))
     um = UserDataMngr(config, secrets)
     userid = current_user.get_id()
     tmnf = um.get_tmnf_login(userid)
     tm20 = um.get_tm20_login(userid)
     discord = um.get_discord_id(userid)
     return flask.jsonify({"tmnf": tmnf, "tm20": tm20, "discord": discord}), 200
+
+
+@app.route("/pwdreset", methods=["POST"])
+def reset_password():
+    log_access("/pwdreset - POST", bool(current_user))
+    # ======= FLOW FOR PASSED TOKEN (SECOND STEP IN PWD RESET)
+    if (
+        flask.request.json.get("token", None) is not None
+        and flask.request.json.get("pwd", None) is not None
+    ):
+        if not (
+            isinstance(flask.request.json["token"], str)
+            and len(flask.request.json["token"]) == 6
+        ):
+            return return_bad_value("token")
+        um = UserDataMngr(config, secrets)
+        cryptpw = hashlib.sha256(flask.request.json["pwd"].encode()).hexdigest()
+        success = um.reset_password_with_token(flask.request.json["token"], cryptpw)
+        if success:
+            return flask.jsonify(flask_restful.http_status_message(200)), 200
+        else:
+            return flask.jsonify(flask_restful.http_status_message(401)), 401
+
+    # ======= FLOW FOR PASSED MAIL AND USER (FIRST STEP IN PWD RESET)
+    if (
+        flask.request.json.get("mail", None) is not None
+        and flask.request.json.get("user", None) is not None
+    ):
+        logger.info("FLOW FOR PASSED MAIL AND USER")
+        if is_invalid(flask.request.json["mail"], str, length=80) or is_invalid(
+            flask.request.json["user"], str, length=80
+        ):
+            return return_bad_value("mail or user")
+        cryptmail = hashlib.sha256(flask.request.json["mail"].encode()).hexdigest()
+        um = UserDataMngr(config, secrets)
+        resettoken = um.set_reset_token(flask.request.json["user"], cryptmail)
+        if resettoken == -1:
+            # no userid found, username/email combo does not exist. 200 for no information leaking
+            return flask.jsonify(flask_restful.http_status_message(200)), 200
+        mail = MailSender(config, secrets)
+        sent = mail.send_pwd_reset_mail(flask.request.json["mail"], resettoken)
+        if sent:
+            return flask.jsonify(flask_restful.http_status_message(200)), 200
+        else:
+            return flask.jsonify(flask_restful.http_status_message(500)), 500
+
+    return flask.jsonify(flask_restful.http_status_message(400)), 400
 
 
 @app.route("/logout")
@@ -182,36 +249,51 @@ def json_serverdata_provider():
     str
         Data in JSON format as a string
     """
-    log_access("/dashboard", bool(current_user))
-    serverinfo = get_pagedata()
+    log_access("/dashboard - GET", bool(current_user))
+    um = UserDataMngr(config, secrets)
+    if not current_user:  # User is not logged in
+        tm_login = ""  # "$" is an illegal tmnf login (tm20 whould be fine)
+    elif config["eventtype"] == "KK":
+        tm_login = um.get_tmnf_login(current_user.get_id())
+    elif config["eventtype"] == "KR":
+        tm_login = um.get_tm20_login(current_user.get_id())
+    serverinfo = get_pagedata(tm_login)
     return json.dumps(serverinfo), 200
 
 
 @app.route("/fin")
 @jwt_required(optional=True)
 def build_fin_json():
+    log_access("/fin - GET", bool(current_user))
     if not current_user:  # User is not logged in
         return {"finishes": 0, "mapids": []}
     um = UserDataMngr(config, secrets)
-    tm_login = um.get_tm20_login(current_user.get_id())
+    if config["eventtype"] == "KK":
+        tm_login = um.get_tmnf_login(current_user.get_id())
+    elif config["eventtype"] == "KR":
+        tm_login = um.get_tm20_login(current_user.get_id())
     try:
         if tm_login != "":
-            fins = api.get_fin_info(tm_login)["finishes"]
-            mapids = list(map(lambda m: int(m), api.get_fin_info(tm_login)["mapids"]))
-            return {"finishes": fins, "mapids": mapids}
+            fins = list(get_finished_maps_event(tm_login).keys())
+            return {"finishes": len(fins), "mapids": fins}, 200
         else:
-            return {"finishes": 0, "mapids": []}
+            return {"finishes": 0, "mapids": []}, 200
     except Exception:
         return {"finishes": 0, "mapids": []}
 
 
-@app.route("/spreadsheet", methods=["POST"])
+@app.route("/spreadsheet/<eventtype>", methods=["POST"])
 @jwt_required()
-def spreadsheet_update():
-    log_access("/spreadsheet - POST", bool(current_user))
+def spreadsheet_update(eventtype: str):
+    log_access(f"/spreadsheet/{eventtype} - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
-    assert isinstance(flask.request.json["mapid"], int)
-    assert MAPIDS[0] <= flask.request.json["mapid"] <= MAPIDS[1]
+    try:
+        logger.info(flask.request.json)
+        assert isinstance(flask.request.json["mapid"], str)
+        # assert MAPIDS[0] <= int(flask.request.json["mapid"].split(" ")[0]) <= MAPIDS[1]
+        check_event_edition_legal(eventtype, "1")
+    except AssertionError:
+        return "Error: bad path", 404
 
     um = UserDataMngr(config, secrets)
 
@@ -223,20 +305,30 @@ def spreadsheet_update():
             current_user.get_id(),
             flask.request.json["mapid"],
             flask.request.json["diff"],
+            eventtype,
         )
     if flask.request.json.get("clip", None) is not None:
         if is_invalid(flask.request.json["clip"], str, length=150):
-            return return_bad_value("map alarm")
+            return return_bad_value("clip")
         um.set_map_clip(
             current_user.get_id(),
             flask.request.json["mapid"],
             flask.request.json["clip"],
+            eventtype,
         )
     if flask.request.json.get("alarm", None) is not None:
         # lazy eval should make sure this is an int in or case
-        if is_invalid(flask.request.json["alarm"], int, vrange=MAPIDS):
+        # if is_invalid(flask.request.json["alarm"], int, vrange=(int(MAPIDS[0]), int(MAPIDS[1]))):
+        #     return return_bad_value("discord alarm toggle")
+        if is_invalid(
+            int(flask.request.json["mapid"]),
+            int,
+            vrange=(int(MAPIDS[0]), int(MAPIDS[1])),
+        ):
             return return_bad_value("discord alarm toggle")
-        um.toggle_discord_alarm(current_user.get_id(), flask.request.json["mapid"])
+        um.toggle_discord_alarm(
+            current_user.get_id(), flask.request.json["mapid"], eventtype
+        )
 
     return flask.jsonify(flask_restful.http_status_message(200)), 200
 
@@ -269,7 +361,7 @@ def spreadsheet_current_event():
         else:
             # api.get_mapinfo()
             # input seems ok, try to find next time map is played
-            deltas = list(map(lambda s: s.find_next_play(mapid), serverinfo))
+            deltas = list(map(lambda s: s.find_next_play(int(mapid)), serverinfo))
             # remove all None from servers which do not have map
             deltas = [i for i in deltas if i[0]]
             # check if we need to find the earliest play, if map is on multiple servers
@@ -291,57 +383,196 @@ def spreadsheet_current_event():
 @jwt_required(optional=True)
 def spreadsheet_hunting(event, edition):
     log_access(f"/spreadsheet/{event}/{edition} - GET", bool(current_user))
-    if not check_event_edition_legal(event, edition):
+    try:
+        if edition == "all":
+            check_event_edition_legal(event, "1")
+        else:
+            check_event_edition_legal(event, edition)
+    except AssertionError:
         return "Error: bad path", 404
+
     # curl -H 'Accept: application/json' -H "Authorization: Bearer JWTKEYHERE"
     # http://localhost:5005/spreadsheet
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
     if not current_user:  # User not logged in
         # Only provide base data
-        sheet = um.get_spreadsheet_event(None, config["eventtype"], config["edition"])
+        sheet = um.get_spreadsheet_event(None, event, edition)
     else:  # User logged in
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
-        sheet = um.get_spreadsheet_event(userid, config["eventtype"], config["edition"])
+        sheet = um.get_spreadsheet_event(userid, event, edition)
         # finned = build_fin_json()
         # for fin in finned["mapids"]:
         #    sheet[fin]["finished"] = True
 
-    sheet = dict(sorted(sheet.items()))
+    # sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
+
 
 @app.route("/eventstatus")
 def event_status():
-    compend = datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
+    log_access("/eventstatus - GET", None)
+    if config["testing_mode"]:
+        compend = datetime.datetime.strptime(
+            config["testing_compend"], "%d.%m.%Y %H:%M"
+        )
+    else:
+        compend = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M")
     if datetime.datetime.now() < compend:
         return json.dumps(
             {
                 "status": "active",
                 "type": config["eventtype"],
-                "edition": config["edition"]
+                "edition": config["edition"],
             }
         )
-    elif datetime.datetime.now < compend + datetime.timedelta(days=30):
-            return json.dumps(
-                {
-                    "status": "post",
-                    "type": config["eventtype"],
-                    "edition": config["edition"]
-                }
-            )
-    return json.dumps(
-                {
-                    "status": "over"
-                }
-            )
+    elif datetime.datetime.now() < compend + datetime.timedelta(days=30):
+        return json.dumps(
+            {
+                "status": "post",
+                "type": config["eventtype"],
+                "edition": config["edition"],
+            }
+        )
+    return json.dumps({"status": "over"})
+
+
+@app.route("/pb/<event>")
+@jwt_required()
+def get_user_pbs(event: str):
+    log_access(f"/pb/{event} - GET", bool(current_user))
+    import requests
+
+    check_event_edition_legal(event, "1")
+    um = UserDataMngr(config, secrets)
+    if event == "kk":
+        login = um.get_tmnf_login(current_user.get_id())
+    else:
+        login = um.get_tm20_login(current_user.get_id())
+    r = requests.get(f"https://records.kacky.info/pb/{login}/{event}")
+    if not r.ok:
+        flask.jsonify("An Error occured"), 400
+    return r.text
+
+
+@app.route("/performance/<event>")
+@jwt_required()
+def get_user_performance(event: str):
+    log_access(f"/performance/{event} - GET", bool(current_user))
+    import requests
+
+    check_event_edition_legal(event, "1")
+    um = UserDataMngr(config, secrets)
+    if event == "kk":
+        login = um.get_tmnf_login(current_user.get_id())
+    else:
+        login = um.get_tm20_login(current_user.get_id())
+    r = requests.get(f"https://records.kacky.info/performance/{login}/{event}")
+    if not r.ok:
+        flask.jsonify("An Error occured"), 400
+    return r.text
+
+
+@app.route("/event/<login>/finned")
+def get_finished_maps_event(login: str):
+    assert isinstance(login, str)
+    log_access(f"/event/{login}/finned - GET", bool(current_user))
+
+    import requests
+
+    r = requests.get(f"https://records.kacky.info/pb/{login}/kk")
+    scores = {
+        k: v for k, v in r.json().items() if int(MAPIDS[1]) <= int(k) <= int(MAPIDS[0])
+    }
+    if flask.request.args.get("string", default=0, type=str) == "ids":
+        return ", ".join(scores.keys())
+    if flask.request.args.get("string", default=0, type=str) == "ranks":
+        return ", ".join([f"{mid} ({s['kacky_rank']})" for mid, s in scores.items()])
+    if flask.request.args.get("string", default=0, type=str) == "scores":
+        return ", ".join([f"{mid} ({s['score'] / 1000}s)" for mid, s in scores.items()])
+    if flask.request.args.get("list", default=0, type=int) == 1:
+        return list(scores.keys())
+    return scores
+
+
+@app.route("/event/<login>/unfinned")
+def get_unfinished_maps_event(login: str):
+    assert isinstance(login, str)
+    log_access(f"/event/{login}/finned - GET", bool(current_user))
+
+    import requests
+
+    r = requests.get(f"https://records.kacky.info/pb/{login}/kk")
+    mapids = [
+        m
+        for m in range(int(MAPIDS[0]), int(MAPIDS[1]) - 1, -1)
+        if str(m) not in r.json()
+    ]
+    if flask.request.args.get("string", default=0, type=int):
+        return ", ".join([f"{m}" for m in mapids])
+    return mapids
+
+
+@app.route("/event/<login>/nextunfinned")
+def get_next_unfinned_event(login: str):
+    assert isinstance(login, str)
+    logger.info("get_next_unfinned_event - GET")
+    unfinned = get_unfinished_maps_event(login)
+    serverinfo = api.serverinfo.values()
+    result = {}
+    for unf in unfinned:
+        # input seems ok, try to find next time map is played
+        deltas = list(map(lambda s: s.find_next_play(int(unf)), serverinfo))
+        # remove all None from servers which do not have map
+        deltas = [i for i in deltas if i[0]]
+        # check if we need to find the earliest play, if map is on multiple servers
+        earliest = deltas[0]
+        # check if we need to find the earliest play, if map is on multiple servers
+        if len(deltas) > 1:
+            for d in deltas[1:]:
+                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                    d[0][0]
+                ) * 60 + int(d[0][1]):
+                    earliest = d
+        result[unf] = {}
+        result[unf]["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+        result[unf]["server"] = earliest[1]
+    # find shortest wait time
+    mintime = min([v["upcomingIn"] for v in result.values()])
+    up_maps = {k: v for k, v in result.items() if v["upcomingIn"] == mintime}
+    if flask.request.args.get("simochat", default=0, type=int):
+        msg = f"Next unfinished map{'s' if len(up_maps) > 1 else ''} in {mintime} minutes: "
+        maplist = ", ".join([f"{k} (Server {v['server']})" for k, v in up_maps.items()])
+        return msg + maplist
+    return up_maps
+
+
+@app.route("/wrleaderboard/<eventtype>")
+def get_wr_leaderboard(eventtype: str):
+    check_event_edition_legal(eventtype, "1")
+    mdb = MiscDBOperators(config, secrets)
+    wrs = mdb.get_wr_leaderboard_by_etype(eventtype)
+    nicknames = mdb.get_most_recent_nicknames(eventtype)
+    # logger.info(wrs)
+    wrs_nicked = [
+        {
+            "nwrs": w["nwrs"],
+            "login": w["login"],
+            "nickname": TMString(nicknames.get(w["login"], w["login"])).html,
+        }
+        for w in wrs
+    ]
+    # logger.info(wrs_nicked)
+    return json.dumps(wrs_nicked)
+
 
 def check_event_edition_legal(event: Any, edition: Any):
     # check if parameters are valid (this also is input sanitation)
     if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
         # Allowed arguments
         return True
-    return False
+    raise AssertionError
 
 
 @app.route("/")
@@ -353,6 +584,69 @@ def ind():
 @jwt_required()
 def protected():
     return flask.jsonify(name=current_user.username, id=current_user.get_id())
+
+
+message = ""
+target = ""
+
+
+@app.route("/stream")
+@jwt_required()
+def stream():
+    logger.info(f"-------- {current_user.username}")
+    with open(Path(__file__).parents[2] / "streamdata.txt", "r") as f:
+        lines = f.readlines()
+    target = lines[0]
+    message = lines[1]
+    logger.info(lines)
+    logger.info(f"message: {message}")
+    if current_user.username != target.rstrip():
+        flask.jsonify(flask_restful.http_status_message(200)), 200
+    return json.dumps({"data": message.rstrip()})
+
+
+@app.route("/post", methods=["POST"])
+def post():
+    log_access("/post - POST", bool(current_user))
+    if (
+        "pwd" not in flask.request.json
+        or flask.request.json["pwd"] != secrets["msg_send_pwd"]
+    ):
+        log_access("/post - POST - BAD PWD", bool(current_user))
+        return flask.jsonify(flask_restful.http_status_message(403)), 403
+    global message
+    if "message" not in flask.request.json:
+        log_access("/post - POST - BAD PARAMS", bool(current_user))
+        return flask.jsonify(flask_restful.http_status_message(400)), 400
+    message = flask.request.json["message"]
+    with open(Path(__file__).parents[2] / "streamdata.txt", "r+") as f:
+        lines = f.readlines()
+        logger.info(lines)
+    with open(Path(__file__).parents[2] / "streamdata.txt", "w") as f:
+        lines = f.write(f"{lines[0].rstrip()}\n{message.rstrip()}\n")
+
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
+
+
+@app.route("/target", methods=["POST"])
+def set_target():
+    log_access("/target - POST", bool(current_user))
+
+    if (
+        "pwd" not in flask.request.json
+        or flask.request.json["pwd"] != secrets["msg_send_pwd"]
+    ):
+        log_access("/target - POST - BAD PWD", bool(current_user))
+        return flask.jsonify(flask_restful.http_status_message(403)), 403
+    global target
+    if "target" not in flask.request.json:
+        log_access("/target - POST - BAD PARAMS", bool(current_user))
+        return flask.jsonify(flask_restful.http_status_message(400)), 400
+    target = flask.request.json["target"]
+    logger.info(flask.request.json)
+    with open(Path(__file__).parents[2] / "streamdata.txt", "w") as f:
+        f.write("{target.rstrip()}\n\n")
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
 
 
 @jwt.token_in_blocklist_loader
@@ -405,12 +699,11 @@ def is_invalid(
     """
     if not isinstance(value, dtype):
         return True
-
     if length and dtype is str:
         if len(value) >= length:
             return True
 
-    if vrange and not (vrange[0] <= value <= vrange[1]):
+    if vrange and not (min(vrange) <= value <= max(vrange)):
         return True
 
     return False
@@ -419,16 +712,8 @@ def is_invalid(
 def log_access(route: str, logged_in: bool = False):
     logger.info(
         f"{route} accessed by "
-        f"{flask.request.headers.get('Cf-Connecting-Ip', 'unknown-IP')} "
-        f"({flask.request.headers.get('Cf-Ipcountry', 'unknown-origin')}). "
+        f"{flask.request.headers.get('X-Forwarded-For', 'unknown-forward')}. "
         f"User status: {logged_in}"
-    )
-    logger.info(
-        flask.request.headers.get("Origin", "")
-        + " - "
-        + flask.request.headers.get("Referer", "")
-        + " - "
-        + flask.request.headers.get("Cf-Connecting-Ip", "")
     )
 
 
@@ -452,11 +737,12 @@ with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
 MAPIDS = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(
     config["eventtype"], config["edition"]
 )
+# build numbers, ignoring potential '[vX]'s
 MAPIDS = (min(MAPIDS), max(MAPIDS))
 
 if config["logtype"] == "STDOUT":
     pass
-    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(format="%(name)s - %(levelname)s - %(message)s")
 # YES, this totally ignores threadsafety. On the other hand, it is quite safe to assume
 # that it only will occur very rarely that things get logged at the same time in this
 # usecase. Furthermore, logging is absolutely not critical in this case and mostly used
@@ -498,6 +784,18 @@ app.config["JWT_HEADER_TYPE"] = "Bearer"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
     days=100
 )  # Why 100? idk, looks cool
+
+# Update data from kacky API every minute
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    func=api._update_server_info,
+    trigger="interval",
+    seconds=60,
+    max_instances=1,
+)
+# start scheduler
+api._update_server_info()
+scheduler.start()
 
 logger.info("Starting application.")
 if "gunicorn" not in os.environ.get("SERVER_SOFTWARE", ""):
