@@ -1,3 +1,5 @@
+from tmformatresolver import TMString
+
 from kacky_eventpage_backend.db_ops.db_base import DBConnection
 
 
@@ -73,3 +75,19 @@ class MiscDBOperators(DBConnection):
         if raw:
             self._cursor.fetchall()
         return {d[0]: d[1] for d in self._cursor.fetchall()}
+
+    def get_events(self, include_ids: bool = False, include_visibility: bool = False):
+        if include_visibility:
+            query = f"SELECT {'id, ' if include_ids else ''} name, type, edition, visible FROM events;"
+        else:
+            query = f"SELECT {'id, ' if include_ids else ''} name, type, edition FROM events WHERE visible = TRUE;"
+        self._cursor.execute(query, ())
+        columns = [col[0] for col in self._cursor.description]
+        events = [dict(zip(columns, row)) for row in self._cursor.fetchall()]
+
+        def make_name_tmstring(d):
+            d["name"] = TMString(d["name"]).string
+            return d
+
+        events = [make_name_tmstring(ev) for ev in events]
+        return events

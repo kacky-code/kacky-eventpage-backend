@@ -1,6 +1,7 @@
 import datetime
 import random
 import string
+from math import inf
 from typing import Union
 
 from kacky_eventpage_backend.db_ops.db_base import DBConnection
@@ -258,7 +259,7 @@ class UserDataMngr(DBConnection):
             sdict[alarm]["alarm"] = True
         return sdict
 
-    def get_spreadsheet_event(
+    '''def get_spreadsheet_event(
         self, userid: Union[str, None], eventtype: str, edition: Union[int, str]
     ):
         if edition.isdigit():
@@ -367,6 +368,147 @@ class UserDataMngr(DBConnection):
         query = "SELECT * FROM spreadsheet WHERE user_id = ? AND map_id = ?;"
         self._cursor.execute(query, (userid, mapid))
         return self._cursor.fetchall()
+    '''
+
+    def get_spreadsheet_event(
+        self,
+        userid: Union[str, None],
+        eventtype: str,
+        edition: Union[int, str] = None,
+        kackyid: str = None,
+    ):
+        if edition is not None and kackyid is not None:
+            raise ValueError(
+                "Setting `edition` and `kackyid` at the same time is not supported!"
+            )
+
+        editions_where_clause = ""
+        query_params = ()
+
+        # lazy eval
+        if edition is not None and edition.isdigit():
+            editions_where_clause = "AND events.edition = ?"
+            if userid:
+                query_params = (userid, eventtype, edition, eventtype, edition)
+            else:
+                query_params = (eventtype, edition)
+        elif edition == "all":
+            editions_where_clause = ""
+            if userid:
+                query_params = (userid, eventtype, eventtype)
+            else:
+                query_params = (eventtype,)
+
+        # lazy eval
+
+        try:
+            if int(kackyid) <= inf:
+                editions_where_clause = "AND kacky_id_int = ?"
+                if userid:
+                    query_params = (userid, eventtype, kackyid, eventtype, kackyid)
+                else:
+                    query_params = (eventtype, kackyid)
+        except Exception:
+            if kackyid is not None:
+                # kackyid neither None nor int
+                return
+
+        if userid:
+            query = f"""
+                    SELECT
+                        maps.kacky_id_int,
+                        maps.map_version as version,
+                        maps.author,
+                        maps.difficulty as rating,
+                        data.*,
+                        wr.score AS wr_score,
+                        wr.nickname AS wr_nick,
+                        wr.login AS wr_login
+                    FROM maps
+                    LEFT JOIN (
+                        SELECT
+                            maps.id,
+                            spreadsheet.map_diff,
+                            spreadsheet.map_pb,
+                            spreadsheet.map_rank,
+                            spreadsheet.clip
+                        FROM maps
+                        LEFT JOIN spreadsheet ON spreadsheet.map_id = maps.id
+                        INNER JOIN events ON maps.kackyevent = events.id
+                        WHERE spreadsheet.user_id = ? AND events.type = ? {editions_where_clause}
+                    ) AS data ON maps.id = data.id
+                    LEFT JOIN events ON maps.kackyevent = events.id
+                    INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
+                    WHERE events.type = ? {editions_where_clause}
+                    ORDER BY maps.kacky_id_int;
+                    """
+            self._cursor.execute(query, query_params)
+            # get column names to build a dictionary as result
+            columns = [col[0] for col in self._cursor.description]
+        else:
+            query = f"""
+                    SELECT
+                        maps.kacky_id_int,
+                        maps.map_version as version,
+                        maps.author,
+                        maps.difficulty as rating,
+                        wr.score AS wr_score,
+                        wr.nickname AS wr_nick,
+                        wr.login AS wr_login
+                    FROM maps
+                    LEFT JOIN events ON maps.kackyevent = events.id
+                    INNER JOIN worldrecords AS wr ON maps.id = wr.map_id
+                    WHERE events.type = ? {editions_where_clause}
+                    ORDER BY maps.kacky_id_int;
+                    """
+            self._cursor.execute(query, query_params)
+            # get column names to build a dictionary as result
+            columns = [col[0] for col in self._cursor.description]
+        qres = self._cursor.fetchall()
+        # make a dict from the result set
+        sdict = [dict(zip(columns, row)) for row in qres]
+        # only keep one element as wrholder. Value is either wr_login or wr_nick.
+        # If wr_login is not empty string, use it. Else use wr_nick
+        for mapinfo in sdict:
+            if mapinfo["wr_login"] == "":
+                mapinfo["wr_holder"] = mapinfo["wr_nick"]
+            else:
+                mapinfo["wr_holder"] = mapinfo["wr_login"]
+            # delete both keys, they are unused now
+            del mapinfo["wr_login"]
+            del mapinfo["wr_nick"]
+
+        for mapinfo in sdict:
+            if mapinfo["wr_score"] == 1800000:
+                mapinfo["wr_score"] = 0
+
+        # make kacky_ids the key of a dict containing all the data (do this in
+        # an extra step to use `kacky_id` key from the dict instead of some
+        # hardcoded array position. Slightly more work, but should be fine
+        sdict = {row["kacky_id_int"]: row for row in sdict}
+
+        # TEMP FOR COMPABILITY
+        # add back a kacky_id field
+        sdict = {k: dict({"kacky_id": k}, **v) for k, v in sdict.items()}
+
+        # Leave early, if not userid
+        if not userid:
+            return sdict
+        # Add discord alarms to the mix
+        discord_alarms = self.get_discord_alarms(userid)
+        for alarm in discord_alarms:
+            if alarm == "":
+                continue
+            try:
+                sdict[alarm]["alarm"] = True
+            except KeyError:
+                # Do the dirty pass, but this most likely happens because user tries
+                # to load an edition that has no discord alarms set.
+                pass
+        return sdict
+
+    def get_spreadsheet_line(self, userid: int, eventtype: str, kackyid: str):
+        return self.get_spreadsheet_event(userid, eventtype, kackyid=kackyid)
 
     def set_map_clip(self, userid: int, mapid: str, clip: str, eventtype: str):
         query = """
@@ -377,7 +519,7 @@ class UserDataMngr(DBConnection):
                             SELECT maps.id
                             FROM maps
                             INNER JOIN events on maps.kackyevent = events.id
-                            WHERE events.type = ? AND maps.kacky_id = ?
+                            WHERE events.type = ? AND maps.kacky_id_int = ?
                         ),
                         ?
                     )
@@ -396,7 +538,7 @@ class UserDataMngr(DBConnection):
                                     SELECT maps.id
                                     FROM maps
                                     INNER JOIN events on maps.kackyevent = events.id
-                                    WHERE events.type = ? AND maps.kacky_id = ?
+                                    WHERE events.type = ? AND maps.kacky_id_int = ?
                                 ),
                                 ?
                             )

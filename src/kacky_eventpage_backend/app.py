@@ -21,6 +21,7 @@ from flask_jwt_extended import (
 )
 from tmformatresolver import TMString
 
+from kacky_eventpage_backend.db_ops.admin_operations import AdminOperators
 from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
 from kacky_eventpage_backend.mailsender import MailSender
@@ -410,6 +411,55 @@ def spreadsheet_hunting(event, edition):
     return json.dumps(list(sheet.values())), 200
 
 
+@app.route("/mapinfo/<eventtype>/<kackyid>", methods=["GET"])
+@jwt_required(optional=True)
+def get_single_map_info(eventtype, kackyid):
+    log_access(f"/mapinfo/{eventtype}/{kackyid} - GET", bool(current_user))
+    if not check_event_edition_legal(eventtype, "1"):
+        return "Error: bad path", 404
+    try:
+        int(kackyid)
+    except ValueError:
+        return "Error: bad path", 404
+    um = UserDataMngr(config, secrets)
+    # Check if user is logged in.
+    if not current_user:  # User not logged in
+        # Only provide base data
+        sheet = um.get_spreadsheet_line(None, eventtype, kackyid)
+    else:  # User logged in
+        # Add user specific data to the spreadsheet
+        userid = current_user.get_id()
+        sheet = um.get_spreadsheet_line(userid, eventtype, kackyid)
+        # finned = build_fin_json()
+        # for fin in finned["mapids"]:
+        #    sheet[fin]["finished"] = True
+
+    # while there is no guarantee that there is only one element, the database would be wrong if there were multiple
+    return json.dumps(list(sheet.values())[0]), 200
+
+
+@app.route("/mapinfo/<eventtype>/<kacky_id>", methods=["POST"])
+@jwt_required()
+def edit_mapinfo(eventtype: str, kacky_id: str):
+    log_access(f"/mapinfo/{eventtype}/{kacky_id} - POST", bool(current_user))
+    if not current_user.is_admin():
+        # user is not an admin and can bugger off.
+        log_access("unauthorized admin operation!")
+        return "Not authorized. Your actions will have consequences.", 401
+    if not check_event_edition_legal(eventtype, "1"):
+        return "Error: bad path", 400
+    try:
+        int(kacky_id)
+    except ValueError:
+        return "Error: bad path", 400
+
+    if flask.request.json.get("reset", None) is not None:
+        ao = AdminOperators(config, secrets)
+        if not ao.reset_wr(eventtype, int(kacky_id)):
+            return flask.jsonify(flask_restful.http_status_message(500)), 500
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
+
+
 @app.route("/eventstatus")
 def event_status():
     log_access("/eventstatus - GET", None)
@@ -436,6 +486,24 @@ def event_status():
             }
         )
     return json.dumps({"status": "over"})
+
+
+@app.route("/events", methods=["GET", "POST"])
+@jwt_required(optional=True)
+def get_events():
+    log_access("/events - GET", bool(current_user))
+    mdb = MiscDBOperators(config, secrets)
+    if flask.request.method == "POST":
+        if flask.request.json.get("visibility", None) == "true":
+            if not current_user or not current_user.is_admin():
+                # user is not an admin and can bugger off.
+                log_access("unauthorized admin operation!")
+                return "Not authorized. Your actions will have consequences.", 401
+            return (
+                json.dumps(mdb.get_events(include_ids=True, include_visibility=True)),
+                200,
+            )
+    return json.dumps(mdb.get_events()), 200
 
 
 @app.route("/pb/<event>")
@@ -569,10 +637,149 @@ def get_wr_leaderboard(eventtype: str):
 
 def check_event_edition_legal(event: Any, edition: Any):
     # check if parameters are valid (this also is input sanitation)
-    if isinstance(event, str) and edition.isdigit() and event in ["kk", "kr"]:
+    if isinstance(event, str) and edition.isdigit() and event.upper() in ["KK", "KR"]:
         # Allowed arguments
         return True
     raise AssertionError
+
+
+@app.route("/manage/events", methods=["POST"])
+@jwt_required()
+def manage_events():
+    log_access("/manage/events - POST", bool(current_user))
+    if not current_user.is_admin():
+        # user is not an admin and can bugger off.
+        log_access("unauthorized admin operation!")
+        return "Not authorized. Your actions will have consequences.", 401
+    logger.info(flask.request.json.get("create", None))
+    if flask.request.json.get("create", None) is not None:
+        if (
+            is_invalid(flask.request.json["create"].get("name", None), str, length=80)
+            or not check_event_edition_legal(
+                flask.request.json["create"].get("type", None),
+                flask.request.json["create"].get("edition", None),
+            )
+            or is_invalid(
+                flask.request.json["create"].get("startDate", None), str, length=16
+            )
+            or is_invalid(
+                flask.request.json["create"].get("endDate", None), str, length=16
+            )
+            or is_invalid(
+                flask.request.json["create"].get("minID", None),
+                int,
+                check_castable=True,
+            )
+            or is_invalid(
+                flask.request.json["create"].get("maxID", None),
+                int,
+                check_castable=True,
+            )
+        ):
+            return flask.jsonify(flask_restful.http_status_message(400)), 400
+        try:
+            startDate = datetime.datetime.fromisoformat(
+                flask.request.json["create"]["startDate"]
+            )
+            endDate = datetime.datetime.fromisoformat(
+                flask.request.json["create"]["endDate"]
+            )
+        except ValueError:
+            return "Invalid date format!", 400
+        ao = AdminOperators(config, secrets)
+        ret_code = ao.add_event(
+            flask.request.json["create"]["name"],
+            flask.request.json["create"]["type"],
+            int(flask.request.json["create"]["edition"]),
+            startDate,
+            endDate,
+            int(flask.request.json["create"]["minID"]),
+            int(flask.request.json["create"]["maxID"]),
+        )
+        if ret_code < 1:
+            if ret_code == -1:
+                return (
+                    f"{flask.request.json['create']['name']}{flask.request.json['create']['edition']} already exists!",
+                    400,
+                )
+            elif ret_code == -2:
+                return f"{flask.request.json['create']['edition']} already exists!", 400
+            elif ret_code == -3:
+                return (
+                    "There already are maps in the pool with the Kacky IDs you provided!",
+                    400,
+                )
+            return flask.jsonify(flask_restful.http_status_message(500)), 500
+    if flask.request.json.get("visible", None):
+        if is_invalid(
+            flask.request.json["visible"].get("id", None), int, check_castable=True
+        ) or is_invalid(
+            flask.request.json["visible"].get("value", None), bool, check_castable=True
+        ):
+            return flask.jsonify(flask_restful.http_status_message(400)), 400
+        ao = AdminOperators(config, secrets)
+        ao.change_event_visible(
+            int(flask.request.json["visible"]["id"]),
+            bool(flask.request.json["visible"]["value"]),
+        )
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
+
+
+@app.route("/manage/maps", methods=["POST"])
+@jwt_required()
+def manage_maps():
+    log_access("/manage/maps - POST", bool(current_user))
+    if not current_user.is_admin():
+        # user is not an admin and can bugger off.
+        log_access("unauthorized admin operation!")
+        return "Not authorized. Your actions will have consequences.", 401
+    from kacky_eventpage_backend.process_maps_file import process_maps
+
+    logger.debug("processing file")
+    logger.debug(flask.request.files.keys())
+    if flask.request.files["file"]:
+        processing_res = process_maps(flask.request.files["file"])
+        logger.debug(f"processing_res: {processing_res}")
+        if processing_res == -1:
+            # missing required columns
+            return "Missing required columns", 422
+        if processing_res == -2:
+            # not all values for required columns are set
+            return "Values for required columns must be set at all times!", 422
+        if processing_res == -3:
+            # unknown columns were provided
+            return "Unknown columns", 422
+
+        # processing_res contains a list of lists that can be written to db.
+        # this could overwrite data that already exists. in that case we return a HTTP 409 so that overwriting can be
+        # forced with a dedicated `overwrite` flag
+        ao = AdminOperators(config, secrets)
+        logger.debug("processed file, storing in db")
+        # logger.debug(f"Overwriting? {flask.request.files.get('overwrite', False).read() == b'1'}")
+        # logger.debug(flask.request.files.get("overwrite").read())
+        # logger.debug(type(flask.request.files.get("overwrite")))
+        update_res = ao.update_maps(
+            processing_res,
+            flask.request.files.get("overwrite").read() == b"1"
+            if flask.request.files.get("overwrite", False)
+            else False,
+        )
+
+        if update_res == 409:
+            # notify user to
+            logger.debug("need confirmation to overwrite data")
+            return (
+                "Your action would overwrite already existing maps! You may set 'overwrite' to 1",
+                409,
+            )
+        if update_res == 200:
+            # success
+            logger.debug("sucess")
+            return "Updated maps.", 200
+        return flask.jsonify(flask_restful.http_status_message(update_res)), update_res
+    else:
+        logger.debug("missing file")
+        return "Missing file", 400
 
 
 @app.route("/")
@@ -666,6 +873,11 @@ def user_lookup_callback(_jwt_header, jwt_data):
     return User(username, config, secrets).exists()
 
 
+@jwt.additional_claims_loader
+def add_claims_to_access_token(identity):
+    return {"isAdmin": identity.is_admin()}
+
+
 @jwt_required()
 def return_bad_value(error_param: str):
     logger.error(
@@ -676,7 +888,11 @@ def return_bad_value(error_param: str):
 
 
 def is_invalid(
-    value: Any, dtype: Any, vrange: Tuple[int, int] = None, length: int = None
+    value: Any,
+    dtype: Any,
+    vrange: Tuple[int, int] = None,
+    length: int = None,
+    check_castable=False,
 ):
     """
     Checks if value is valid by type and value.
@@ -691,16 +907,23 @@ def is_invalid(
         Range in which value is valid (e.g. numerical range)
     length: int
         Valid length of value (e.g. for strings)
-
+    check_castable: bool
+        If value is not of type dtype, check if casting is possible
     Returns
     -------
     bool
         True if value is invalid according to parameters
     """
     if not isinstance(value, dtype):
-        return True
+        if check_castable:
+            try:  # try if it is possible to cast (BEAUTIFUL, does not at all need explanation how it works :3)
+                dtype(value)  # casts value to the type of dtype
+            except ValueError:
+                return True
+        else:
+            return True
     if length and dtype is str:
-        if len(value) >= length:
+        if len(value) > length:
             return True
 
     if vrange and not (min(vrange) <= value <= max(vrange)):
@@ -784,6 +1007,7 @@ app.config["JWT_HEADER_TYPE"] = "Bearer"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
     days=100
 )  # Why 100? idk, looks cool
+app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 
 # Update data from kacky API every minute
 scheduler = BackgroundScheduler()
