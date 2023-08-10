@@ -4,6 +4,8 @@ import string
 from math import inf
 from typing import Union
 
+from tmformatresolver import TMString
+
 from kacky_eventpage_backend.db_ops.db_base import DBConnection
 
 
@@ -376,6 +378,7 @@ class UserDataMngr(DBConnection):
         eventtype: str,
         edition: Union[int, str] = None,
         kackyid: str = None,
+        raw: bool = False,
     ):
         if edition is not None and kackyid is not None:
             raise ValueError(
@@ -471,7 +474,10 @@ class UserDataMngr(DBConnection):
         # If wr_login is not empty string, use it. Else use wr_nick
         for mapinfo in sdict:
             if mapinfo["wr_login"] == "":
-                mapinfo["wr_holder"] = mapinfo["wr_nick"]
+                if raw:
+                    mapinfo["wr_holder"] = mapinfo["wr_nick"]
+                else:
+                    mapinfo["wr_holder"] = TMString(mapinfo["wr_nick"]).string
             else:
                 mapinfo["wr_holder"] = mapinfo["wr_login"]
             # delete both keys, they are unused now

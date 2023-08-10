@@ -55,11 +55,11 @@ def get_pagedata(login: str = ""):
     if login != "":
         if config["eventtype"] == "KK":
             r = requests.get(
-                f"https://records.kacky.info/pb/{login}/kk/{config['edition']}"
+                f"https://records.kacky.gg/pb/{login}/kk/{config['edition']}"
             )
         else:
             r = requests.get(
-                f"https://records.kacky.info/pb/{login}/kr/{config['edition']}"
+                f"https://records.kacky.gg/pb/{login}/kr/{config['edition']}"
             )
         if r.ok:
             fins = r.json()
@@ -398,11 +398,15 @@ def spreadsheet_hunting(event, edition):
     # Check if user is logged in.
     if not current_user:  # User not logged in
         # Only provide base data
-        sheet = um.get_spreadsheet_event(None, event, edition)
+        sheet = um.get_spreadsheet_event(
+            None, event, edition, raw=bool(flask.request.args.get("rawnicks", False))
+        )
     else:  # User logged in
         # Add user specific data to the spreadsheet
         userid = current_user.get_id()
-        sheet = um.get_spreadsheet_event(userid, event, edition)
+        sheet = um.get_spreadsheet_event(
+            userid, event, edition, raw=bool(flask.request.args.get("rawnicks", False))
+        )
         # finned = build_fin_json()
         # for fin in finned["mapids"]:
         #    sheet[fin]["finished"] = True
@@ -518,7 +522,7 @@ def get_user_pbs(event: str):
         login = um.get_tmnf_login(current_user.get_id())
     else:
         login = um.get_tm20_login(current_user.get_id())
-    r = requests.get(f"https://records.kacky.info/pb/{login}/{event}")
+    r = requests.get(f"https://records.kacky.gg/pb/{login}/{event}")
     if not r.ok:
         flask.jsonify("An Error occured"), 400
     return r.text
@@ -536,7 +540,7 @@ def get_user_performance(event: str):
         login = um.get_tmnf_login(current_user.get_id())
     else:
         login = um.get_tm20_login(current_user.get_id())
-    r = requests.get(f"https://records.kacky.info/performance/{login}/{event}")
+    r = requests.get(f"https://records.kacky.gg/performance/{login}/{event}")
     if not r.ok:
         flask.jsonify("An Error occured"), 400
     return r.text
@@ -549,7 +553,7 @@ def get_finished_maps_event(login: str):
 
     import requests
 
-    r = requests.get(f"https://records.kacky.info/pb/{login}/kk")
+    r = requests.get(f"https://records.kacky.gg/pb/{login}/kk")
     scores = {
         k: v for k, v in r.json().items() if int(MAPIDS[1]) <= int(k) <= int(MAPIDS[0])
     }
@@ -571,7 +575,7 @@ def get_unfinished_maps_event(login: str):
 
     import requests
 
-    r = requests.get(f"https://records.kacky.info/pb/{login}/kk")
+    r = requests.get(f"https://records.kacky.gg/pb/{login}/kk")
     mapids = [
         m
         for m in range(int(MAPIDS[0]), int(MAPIDS[1]) - 1, -1)
