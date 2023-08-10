@@ -264,7 +264,7 @@ class UserDataMngr(DBConnection):
     '''def get_spreadsheet_event(
         self, userid: Union[str, None], eventtype: str, edition: Union[int, str]
     ):
-        if edition.isdigit():
+        if isinstance(edition, int) or edition.isdigit():
             editions_where_clause = "AND events.edition = ?"
             if userid:
                 query_params = (userid, eventtype, edition, eventtype, edition)
