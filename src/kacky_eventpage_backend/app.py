@@ -83,6 +83,70 @@ def get_pagedata(login: str = ""):
     return response
 
 
+def add_playtimes_to_sheet(sheet):
+    """
+    Calculate upcoming playtimes and server information for each map in the sheet.
+    Modification of sheet is inplace, adding new keys.
+
+    Parameters
+    ----------
+    sheet : dict
+        A dictionary containing `kacky_id`s as keys and dictionaries as values.
+
+    Example
+    -------
+    sheet = {
+        201: {
+            'kacky_id': 201,
+            'kacky_id_int': 201,
+            'version': '',
+            'author': 'nixion4',
+            'rating': 8,
+            'wr_score': 17580,
+            'wr_holder': 'nixion4'
+        },
+    }
+    get_next_playtimes(sheet)
+    print(sheet)
+    # {
+    #     201: {
+    #         'kacky_id': 201,
+    #         'kacky_id_int': 201,
+    #         'version': '',
+    #         'author': 'nixion4',
+    #         'rating': 8,
+    #         'wr_score': 17580,
+    #         'wr_holder': 'nixion4'
+    #         'upcomingIn': 61,
+    #         'server': 'TestServer XYZ'
+    #     },
+    # }
+    """
+    serverinfo = api.serverinfo.values()
+    for mapid, dataset in sheet.items():
+        if config["testing_mode"]:
+            dataset["upcomingIn"] = 1 * 60 + 1
+            dataset["server"] = "TestServer XYZ"
+        else:
+            # api.get_mapinfo()
+            # input seems ok, try to find next time map is played
+            deltas = list(map(lambda s: s.find_next_play(int(mapid)), serverinfo))
+            # remove all None from servers which do not have map
+            deltas = [i for i in deltas if i[0]]
+            # check if we need to find the earliest play, if map is on multiple servers
+            earliest = deltas[0]
+            # check if we need to find the earliest play, if map is on multiple servers
+            if len(deltas) > 1:
+                for d in deltas[1:]:
+                    if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                        d[0][0]
+                    ) * 60 + int(d[0][1]):
+                        earliest = d
+            dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+            dataset["server"] = earliest[1]
+    return sheet
+
+
 @app.route("/register", methods=["POST"])
 def register_user():
     # curl -d "user=peter&mail=peter&pwd=peter"
@@ -354,28 +418,7 @@ def spreadsheet_current_event():
         #    sheet[fin]["finished"] = True
 
     # add next play times for each map, regardless of login state
-    serverinfo = api.serverinfo.values()
-    for mapid, dataset in sheet.items():
-        if config["testing_mode"]:
-            dataset["upcomingIn"] = 1 * 60 + 1
-            dataset["server"] = "TestServer XYZ"
-        else:
-            # api.get_mapinfo()
-            # input seems ok, try to find next time map is played
-            deltas = list(map(lambda s: s.find_next_play(int(mapid)), serverinfo))
-            # remove all None from servers which do not have map
-            deltas = [i for i in deltas if i[0]]
-            # check if we need to find the earliest play, if map is on multiple servers
-            earliest = deltas[0]
-            # check if we need to find the earliest play, if map is on multiple servers
-            if len(deltas) > 1:
-                for d in deltas[1:]:
-                    if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
-                        d[0][0]
-                    ) * 60 + int(d[0][1]):
-                        earliest = d
-            dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
-            dataset["server"] = earliest[1]
+    add_playtimes_to_sheet(sheet)
     sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
 
@@ -591,25 +634,8 @@ def get_next_unfinned_event(login: str):
     assert isinstance(login, str)
     logger.info("get_next_unfinned_event - GET")
     unfinned = get_unfinished_maps_event(login)
-    serverinfo = api.serverinfo.values()
-    result = {}
-    for unf in unfinned:
-        # input seems ok, try to find next time map is played
-        deltas = list(map(lambda s: s.find_next_play(int(unf)), serverinfo))
-        # remove all None from servers which do not have map
-        deltas = [i for i in deltas if i[0]]
-        # check if we need to find the earliest play, if map is on multiple servers
-        earliest = deltas[0]
-        # check if we need to find the earliest play, if map is on multiple servers
-        if len(deltas) > 1:
-            for d in deltas[1:]:
-                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
-                    d[0][0]
-                ) * 60 + int(d[0][1]):
-                    earliest = d
-        result[unf] = {}
-        result[unf]["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
-        result[unf]["server"] = earliest[1]
+    result = {unf: {} for unf in unfinned}
+    add_playtimes_to_sheet(result)
     # find shortest wait time
     mintime = min([v["upcomingIn"] for v in result.values()])
     up_maps = {k: v for k, v in result.items() if v["upcomingIn"] == mintime}
@@ -637,6 +663,27 @@ def get_wr_leaderboard(eventtype: str):
     ]
     # logger.info(wrs_nicked)
     return json.dumps(wrs_nicked)
+
+
+@app.route("/event/nextrun/<kacky_id>")
+def get_next_map_run(kacky_id):
+    try:
+        int(kacky_id)
+    except ValueError:
+        return "Bad Kacky ID", 400
+    version = flask.request.args.get("version", "")
+    sheet = {f"{kacky_id}{(f' [{version}]' if version else '')}": {}}
+    add_playtimes_to_sheet(sheet)
+    dashboard = get_pagedata()
+    if dashboard["comptimeLeft"] <= 0:
+        return "Competition Over", 200
+    sheet["currentlyRunning"] = False
+    for server in dashboard["servers"]:
+        if server["maps"][0]["number"] == int(kacky_id):
+            sheet["currentlyRunning"] = server["serverNumber"]
+            sheet["timeLimit"] = server["serverNumber"]
+            sheet["timeLeft"] = server["timeLeft"]
+    return sheet, 200
 
 
 def check_event_edition_legal(event: Any, edition: Any):

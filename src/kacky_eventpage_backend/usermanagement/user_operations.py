@@ -389,7 +389,7 @@ class UserDataMngr(DBConnection):
         query_params = ()
 
         # lazy eval
-        if edition is not None and edition.isdigit():
+        if edition is not None and (isinstance(edition, int) or edition.isdigit()):
             editions_where_clause = "AND events.edition = ?"
             if userid:
                 query_params = (userid, eventtype, edition, eventtype, edition)
