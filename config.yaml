@@ -1,7 +1,8 @@
 # FLASK/GUNICORN PARAMETERS
 port: 5005
 bind_hosts: 127.0.0.1
-workers: 4
+workers: 12
+threads: 4
 
 # APPLICATION PARAMETERS
 install_dir: /var/www/flask/kacky-eventpage-backend
@@ -13,15 +14,16 @@ enable_stats_page: False # Turning this on provides a DDOS attack vector
 enable_discord_bot: True
 
 # META INFO
-compend: 18.09.2022 22:00
-eventtype: KK # [KK, KR, KX]
-edition: 7 # edition of the eventtype
+compend: 17.09.2023 22:00
+eventtype: KR # [KK, KR, KX]
+edition: 4 # edition of the eventtype
 # playlist parameter can have values ["linear", "custom"]
 # - "linear" for [min_mapid, ... max_mapid] on every server
 # - "custom" for different maps per server (e. g. colors/difficulties)
 #
 # when using custom, set maps (and order) in servers.yaml. Key for server must be same as server name as string
 playlist: custom
+# playlist: linear
 
 # Current phase info
 timelimit: 10
@@ -31,14 +33,14 @@ num_extends: 2
 
 # LOGGING
 logtype: STDOUT # STDOUT, FILE
-logfile: flask.log # might require absolute path
-loglevel: WARNING # DEBUG, INFO, WARNING, ERROR, CRITICAL
+logfile: /var/www/flask/kacky-eventpage-backend/flask.log # might require absolute path
+loglevel: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
 logger_name: KKmaptimes
 
 # DATABASE SETTINGS
 dbhost: localhost
 dbport: 3306
-dbname: kacky_backend
+dbname: kacky_backend_rebuild
 # dbuser and dbpwd in secrets.yaml need to be set!
 
 # TESTING MODE

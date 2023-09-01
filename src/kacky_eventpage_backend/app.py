@@ -25,6 +25,7 @@ from kacky_eventpage_backend.db_ops.admin_operations import AdminOperators
 from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
 from kacky_eventpage_backend.mailsender import MailSender
+from kacky_eventpage_backend.routes.records_api_proxy import records_api_proxy_blueprint
 from kacky_eventpage_backend.usermanagement.token_blacklist import TokenBlacklist
 from kacky_eventpage_backend.usermanagement.user_operations import UserDataMngr
 from kacky_eventpage_backend.usermanagement.user_session_handler import User
@@ -34,6 +35,8 @@ jwt = JWTManager(app)
 config = {}
 CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
+
+app.register_blueprint(records_api_proxy_blueprint)
 
 
 def get_pagedata(login: str = ""):
@@ -53,14 +56,9 @@ def get_pagedata(login: str = ""):
     mdb = MiscDBOperators(config, secrets)
     fins = {}
     if login != "":
-        if config["eventtype"] == "KK":
-            r = requests.get(
-                f"https://records.kacky.gg/pb/{login}/kk/{config['edition']}"
-            )
-        else:
-            r = requests.get(
-                f"https://records.kacky.gg/pb/{login}/kr/{config['edition']}"
-            )
+        r = requests.get(
+            f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
+        )
         if r.ok:
             fins = r.json()
 
@@ -72,7 +70,9 @@ def get_pagedata(login: str = ""):
         for m in val.playlist.get_playlist_from_now():
             mapdict = {
                 "number": m,
-                "author": mdb.get_map_author(m),
+                "author": mdb.get_map_author(
+                    m, config["eventtype"], int(config["edition"])
+                ),
                 "finished": str(m) in fins,
             }
             tmpdict["maps"].append(mapdict)
@@ -81,6 +81,68 @@ def get_pagedata(login: str = ""):
         tmpdict["timeLeft"] = timeleft if timeleft > 0 else 0
         response["servers"].append(tmpdict)
     return response
+
+
+def add_playtimes_to_sheet(sheet):
+    """
+    Calculate upcoming playtimes and server information for each map in the sheet.
+    Modification of sheet is inplace, adding new keys.
+    Parameters
+    ----------
+    sheet : dict
+        A dictionary containing `kacky_id`s as keys and dictionaries as values.
+    Example
+    -------
+    sheet = {
+        201: {
+            'kacky_id': 201,
+            'kacky_id_int': 201,
+            'version': '',
+            'author': 'nixion4',
+            'rating': 8,
+            'wr_score': 17580,
+            'wr_holder': 'nixion4'
+        },
+    }
+    get_next_playtimes(sheet)
+    print(sheet)
+    # {
+    #     201: {
+    #         'kacky_id': 201,
+    #         'kacky_id_int': 201,
+    #         'version': '',
+    #         'author': 'nixion4',
+    #         'rating': 8,
+    #         'wr_score': 17580,
+    #         'wr_holder': 'nixion4'
+    #         'upcomingIn': 61,
+    #         'server': 'TestServer XYZ'
+    #     },
+    # }
+    """
+    serverinfo = api.serverinfo.values()
+    for mapid, dataset in sheet.items():
+        if config["testing_mode"]:
+            dataset["upcomingIn"] = 1 * 60 + 1
+            dataset["server"] = "TestServer XYZ"
+        else:
+            # api.get_mapinfo()
+            # input seems ok, try to find next time map is played
+            deltas = list(map(lambda s: s.find_next_play(int(mapid)), serverinfo))
+            # remove all None from servers which do not have map
+            deltas = [i for i in deltas if i[0]]
+            # check if we need to find the earliest play, if map is on multiple servers
+            earliest = deltas[0]
+            # check if we need to find the earliest play, if map is on multiple servers
+            if len(deltas) > 1:
+                for d in deltas[1:]:
+                    if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
+                        d[0][0]
+                    ) * 60 + int(d[0][1]):
+                        earliest = d
+            dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
+            dataset["server"] = earliest[1]
+    return sheet
 
 
 @app.route("/register", methods=["POST"])
@@ -173,6 +235,20 @@ def get_user_data():
     return flask.jsonify({"tmnf": tmnf, "tm20": tm20, "discord": discord}), 200
 
 
+@app.route("/usermgnt/delete", methods=["POST"])
+@jwt_required()
+def delete_user():
+    log_access("/usermgnt/delete - POST", bool(current_user))
+    um = UserDataMngr(config, secrets)
+    userid = current_user.get_id()
+    try:
+        um.delete_user(userid)
+        TokenBlacklist(config, secrets).blacklist_token(get_jwt()["jti"])
+    except Exception:
+        return flask.jsonify(flask_restful.http_status_message(500)), 500
+    return flask.jsonify(flask_restful.http_status_message(200)), 200
+
+
 @app.route("/pwdreset", methods=["POST"])
 def reset_password():
     log_access("/pwdreset - POST", bool(current_user))
@@ -199,7 +275,6 @@ def reset_password():
         flask.request.json.get("mail", None) is not None
         and flask.request.json.get("user", None) is not None
     ):
-        logger.info("FLOW FOR PASSED MAIL AND USER")
         if is_invalid(flask.request.json["mail"], str, length=80) or is_invalid(
             flask.request.json["user"], str, length=80
         ):
@@ -289,7 +364,6 @@ def spreadsheet_update(eventtype: str):
     log_access(f"/spreadsheet/{eventtype} - POST", bool(current_user))
     # mapid is required, represents main key for updating stuff
     try:
-        logger.info(flask.request.json)
         assert isinstance(flask.request.json["mapid"], str)
         # assert MAPIDS[0] <= int(flask.request.json["mapid"].split(" ")[0]) <= MAPIDS[1]
         check_event_edition_legal(eventtype, "1")
@@ -354,28 +428,7 @@ def spreadsheet_current_event():
         #    sheet[fin]["finished"] = True
 
     # add next play times for each map, regardless of login state
-    serverinfo = api.serverinfo.values()
-    for mapid, dataset in sheet.items():
-        if config["testing_mode"]:
-            dataset["upcomingIn"] = 1 * 60 + 1
-            dataset["server"] = "TestServer XYZ"
-        else:
-            # api.get_mapinfo()
-            # input seems ok, try to find next time map is played
-            deltas = list(map(lambda s: s.find_next_play(int(mapid)), serverinfo))
-            # remove all None from servers which do not have map
-            deltas = [i for i in deltas if i[0]]
-            # check if we need to find the earliest play, if map is on multiple servers
-            earliest = deltas[0]
-            # check if we need to find the earliest play, if map is on multiple servers
-            if len(deltas) > 1:
-                for d in deltas[1:]:
-                    if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
-                        d[0][0]
-                    ) * 60 + int(d[0][1]):
-                        earliest = d
-            dataset["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
-            dataset["server"] = earliest[1]
+    add_playtimes_to_sheet(sheet)
     sheet = dict(sorted(sheet.items()))
     return json.dumps(list(sheet.values())), 200
 
@@ -514,7 +567,6 @@ def get_events():
 @jwt_required()
 def get_user_pbs(event: str):
     log_access(f"/pb/{event} - GET", bool(current_user))
-    import requests
 
     check_event_edition_legal(event, "1")
     um = UserDataMngr(config, secrets)
@@ -522,7 +574,7 @@ def get_user_pbs(event: str):
         login = um.get_tmnf_login(current_user.get_id())
     else:
         login = um.get_tm20_login(current_user.get_id())
-    r = requests.get(f"https://records.kacky.gg/pb/{login}/{event}")
+    r = requests.get(f"https://api.kacky.gg/records/pb/{login}/{event}")
     if not r.ok:
         flask.jsonify("An Error occured"), 400
     return r.text
@@ -532,7 +584,6 @@ def get_user_pbs(event: str):
 @jwt_required()
 def get_user_performance(event: str):
     log_access(f"/performance/{event} - GET", bool(current_user))
-    import requests
 
     check_event_edition_legal(event, "1")
     um = UserDataMngr(config, secrets)
@@ -540,7 +591,7 @@ def get_user_performance(event: str):
         login = um.get_tmnf_login(current_user.get_id())
     else:
         login = um.get_tm20_login(current_user.get_id())
-    r = requests.get(f"https://records.kacky.gg/performance/{login}/{event}")
+    r = requests.get(f"https://api.kacky.gg/records/performance/{login}/{event}")
     if not r.ok:
         flask.jsonify("An Error occured"), 400
     return r.text
@@ -551,11 +602,11 @@ def get_finished_maps_event(login: str):
     assert isinstance(login, str)
     log_access(f"/event/{login}/finned - GET", bool(current_user))
 
-    import requests
-
-    r = requests.get(f"https://records.kacky.gg/pb/{login}/kk")
+    r = requests.get(
+        f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
+    )
     scores = {
-        k: v for k, v in r.json().items() if int(MAPIDS[1]) <= int(k) <= int(MAPIDS[0])
+        k: v for k, v in r.json().items() if int(MAPIDS[0]) <= int(k) <= int(MAPIDS[1])
     }
     if flask.request.args.get("string", default=0, type=str) == "ids":
         return ", ".join(scores.keys())
@@ -569,55 +620,41 @@ def get_finished_maps_event(login: str):
 
 
 @app.route("/event/<login>/unfinned")
-def get_unfinished_maps_event(login: str):
+def get_unfinished_maps_event(login: str, internal: bool = False):
     assert isinstance(login, str)
-    log_access(f"/event/{login}/finned - GET", bool(current_user))
+    log_access(f"/event/{login}/unfinned - GET", bool(current_user))
 
-    import requests
-
-    r = requests.get(f"https://records.kacky.gg/pb/{login}/kk")
+    r = requests.get(
+        f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
+    )
     mapids = [
         m
-        for m in range(int(MAPIDS[0]), int(MAPIDS[1]) - 1, -1)
-        if str(m) not in r.json()
+        for m in range(int(MAPIDS[0]), int(MAPIDS[1]) + 1)
+        if str(m) not in r.json().keys()
     ]
+    logger.info(r.json())
+    if internal:
+        return mapids
     if flask.request.args.get("string", default=0, type=int):
-        return ", ".join([f"{m}" for m in mapids])
-    return mapids
+        return ", ".join([f"{m}" for m in mapids]), 200
+    return flask.jsonify(mapids), 200
 
 
 @app.route("/event/<login>/nextunfinned")
 def get_next_unfinned_event(login: str):
     assert isinstance(login, str)
     logger.info("get_next_unfinned_event - GET")
-    unfinned = get_unfinished_maps_event(login)
-    serverinfo = api.serverinfo.values()
-    result = {}
-    for unf in unfinned:
-        # input seems ok, try to find next time map is played
-        deltas = list(map(lambda s: s.find_next_play(int(unf)), serverinfo))
-        # remove all None from servers which do not have map
-        deltas = [i for i in deltas if i[0]]
-        # check if we need to find the earliest play, if map is on multiple servers
-        earliest = deltas[0]
-        # check if we need to find the earliest play, if map is on multiple servers
-        if len(deltas) > 1:
-            for d in deltas[1:]:
-                if int(earliest[0][0]) * 60 + int(earliest[0][1]) >= int(
-                    d[0][0]
-                ) * 60 + int(d[0][1]):
-                    earliest = d
-        result[unf] = {}
-        result[unf]["upcomingIn"] = int(earliest[0][0]) * 60 + int(earliest[0][1])
-        result[unf]["server"] = earliest[1]
+    unfinned = get_unfinished_maps_event(login, internal=True)
+    result = {unf: {} for unf in unfinned}
+    add_playtimes_to_sheet(result)
     # find shortest wait time
     mintime = min([v["upcomingIn"] for v in result.values()])
     up_maps = {k: v for k, v in result.items() if v["upcomingIn"] == mintime}
     if flask.request.args.get("simochat", default=0, type=int):
         msg = f"Next unfinished map{'s' if len(up_maps) > 1 else ''} in {mintime} minutes: "
         maplist = ", ".join([f"{k} (Server {v['server']})" for k, v in up_maps.items()])
-        return msg + maplist
-    return up_maps
+        return msg + maplist, 200
+    return flask.jsonify(up_maps), 200
 
 
 @app.route("/wrleaderboard/<eventtype>")
@@ -627,16 +664,49 @@ def get_wr_leaderboard(eventtype: str):
     wrs = mdb.get_wr_leaderboard_by_etype(eventtype)
     nicknames = mdb.get_most_recent_nicknames(eventtype)
     # logger.info(wrs)
-    wrs_nicked = [
-        {
-            "nwrs": w["nwrs"],
-            "login": w["login"],
-            "nickname": TMString(nicknames.get(w["login"], w["login"])).html,
-        }
-        for w in wrs
-    ]
+    if flask.request.args.get("html", "True") == "False":
+        wrs_nicked = [
+            {
+                "nwrs": w["nwrs"],
+                "login": w["login"],
+                "nickname": nicknames.get(w["login"], w["login"]),
+            }
+            for w in wrs
+        ]
+    else:
+        wrs_nicked = [
+            {
+                "nwrs": w["nwrs"],
+                "login": w["login"],
+                "nickname": TMString(nicknames.get(w["login"], w["login"])).html,
+            }
+            for w in wrs
+        ]
     # logger.info(wrs_nicked)
     return json.dumps(wrs_nicked)
+
+
+@app.route("/event/nextrun/<kacky_id>")
+def get_next_map_run(kacky_id):
+    try:
+        int(kacky_id)
+    except ValueError:
+        return "Bad Kacky ID", 400
+    if not MAPIDS[0] <= int(kacky_id) <= MAPIDS[1]:
+        return "Bad Kacky ID", 400
+    version = flask.request.args.get("version", "")
+    sheet = {f"{kacky_id}{(f' [{version}]' if version else '')}": {}}
+    add_playtimes_to_sheet(sheet)
+    dashboard = get_pagedata()
+    if dashboard["comptimeLeft"] <= 0:
+        return "Competition Over", 200
+    sheet["currentlyRunning"] = False
+    for server in dashboard["servers"]:
+        if server["maps"][0]["number"] == int(kacky_id):
+            sheet["currentlyRunning"] = server["serverNumber"]
+            sheet["timeLimit"] = server["serverNumber"]
+            sheet["timeLeft"] = server["timeLeft"]
+    return sheet, 200
 
 
 def check_event_edition_legal(event: Any, edition: Any):
@@ -884,6 +954,11 @@ def add_claims_to_access_token(identity):
 
 @jwt_required()
 def return_bad_value(error_param: str):
+    if (
+        flask.request.headers.get("X-Forwarded-For", "unknown-forward")
+        == "213.109.163.46"
+    ):
+        return
     logger.error(
         f"Bad value for {error_param} - userid {current_user.get_id()} "
         f"- payload {flask.request.json}"
@@ -1013,17 +1088,20 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
 )  # Why 100? idk, looks cool
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 
-# Update data from kacky API every minute
-scheduler = BackgroundScheduler()
-scheduler.add_job(
-    func=api._update_server_info,
-    trigger="interval",
-    seconds=60,
-    max_instances=1,
-)
-# start scheduler
-api._update_server_info()
-scheduler.start()
+if datetime.datetime.now() < datetime.datetime.strptime(
+    config["compend"], "%d.%m.%Y %H:%M"
+):
+    # Update data from kacky API every minute
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        func=api._update_server_info,
+        trigger="interval",
+        seconds=60,
+        max_instances=1,
+    )
+    # start scheduler
+    api._update_server_info()
+    scheduler.start()
 
 logger.info("Starting application.")
 if "gunicorn" not in os.environ.get("SERVER_SOFTWARE", ""):

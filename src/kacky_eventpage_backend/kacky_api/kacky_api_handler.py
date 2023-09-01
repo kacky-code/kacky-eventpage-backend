@@ -36,7 +36,7 @@ class KackyAPIHandler:
 
     def __getattr__(self, item):
         if item == "serverinfo":
-            if self._cache_update_required("serverinfo", 1):
+            if self._cache_update_required("serverinfo", 60):
                 self._update_server_info()
             return self._serverinfo
         if item == "leaderboard":
@@ -66,10 +66,15 @@ class KackyAPIHandler:
             self.logger.debug("mutex for update is held, update already in progress")
             return
         compend = dt.strptime(self.config["compend"], "%d.%m.%Y %H:%M")
-        if compend > dt.now() and not (
+        if compend < dt.now():
+            self.logger.debug("competition over, aborting serverinfo update")
+            self._serverinfo_mutex.release()
+            return
+        if (
             self.config["testing_mode"]
-            and dt.strptime(self.config["testing_compend"], "%d.%m.%Y %H:%M") > dt.now()
+            and dt.strptime(self.config["testing_compend"], "%d.%m.%Y %H:%M") < dt.now()
         ):
+            self.logger.debug("TESTING: competition over, aborting serverinfo update")
             self._serverinfo_mutex.release()
             return
         krdata = self._do_api_request("serverinfo")
@@ -112,7 +117,7 @@ class KackyAPIHandler:
         try:
             # TODO: change to actual api
             # krdata = requests.get(
-            #                       "https://kk.kackiestkacky.com/api/",
+            #                       "https://kackyreloaded.com/api/",
             #                       params={"password": self.api_pwd}
             #          ).json()
             krdata = TESTING_DATA["leaderboard"]
@@ -135,7 +140,7 @@ class KackyAPIHandler:
         # check for testing mode
         if request_params is None:
             request_params = {}
-        self.logger.info("Requesting data")
+        self.logger.debug("Requesting data")
         if self.config["testing_mode"]:
             self.logger.info("testing data")
             self.logger.info(TESTING_DATA[value])
@@ -149,14 +154,15 @@ class KackyAPIHandler:
         try:
             if value == "serverinfo":
                 qres = requests.get(
-                    "https://kackiestkacky.com/api/",
+                    "https://kackyreloaded.com/api/",
                     params=request_params,
                     timeout=15,
                 )
             elif value == "userfins":
                 qres = requests.post(
-                    "https://kackiestkacky.com/api/",
+                    "https://kackyreloaded.com/api/",
                     data=request_params,
+                    timeout=15,
                 )
             elif value == "leaderboard":
                 qres = ""

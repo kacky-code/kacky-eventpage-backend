@@ -1,4 +1,5 @@
 import datetime
+import logging
 from pathlib import Path
 
 import yaml
@@ -28,6 +29,7 @@ class ServerInfo:
 
         self.last_update = datetime.datetime.fromtimestamp(0)
         self.timelimit = server_conf[name.string]["timelimit"]
+        self.logger = logging.getLogger(config["logger_name"])
 
     def update_info(self, new_info: dict):
         self.jukebox = new_info["jukebox"]
@@ -37,7 +39,10 @@ class ServerInfo:
         )
         self.recent = new_info["recently_played"]
         self.last_update = datetime.datetime.now()
-        self.timeplayed_internal = int(new_info["time_played"])
+        try:
+            self.timeplayed_internal = int(new_info["time_played"])
+        except ValueError:
+            self.timeplayed_internal = 0
 
         # if recent maps are empty, server must have restarted. Reset playlist order
         if not self.recent:
@@ -45,6 +50,10 @@ class ServerInfo:
         self.playlist.set_current_map(self.cur_map, self.timeplayed_internal)
 
     def find_next_play(self, searchid: int):
+        self.logger.debug(f"find_next_play, {searchid}")
+        self.logger.debug(
+            (self.playlist.get_next_play(searchid, self.timelimit), self.servernum)
+        )
         return self.playlist.get_next_play(searchid, self.timelimit), self.servernum
 
     @property

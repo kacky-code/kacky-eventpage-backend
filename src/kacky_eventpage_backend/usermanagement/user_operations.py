@@ -39,13 +39,13 @@ class UserDataMngr(DBConnection):
         bool
             True if account was created, False if creation failed
         """
-        self._logger.info(f"Trying to create user {user}.")
+        self._logger.debug(f"Trying to create user {user}.")
         # Check if user already exists
         query = "SELECT username FROM kack_users WHERE username = ?;"
         self._cursor.execute(query, (user,))
         if not self._cursor.fetchall():
             self._connection.commit()
-            self._logger.info(f"User {user} does not yet exist. Creating.")
+            self._logger.debug(f"User {user} does not yet exist. Creating.")
             query = "INSERT INTO kack_users(username, password, mail) VALUES (?, ?, ?);"
             self._cursor.execute(query, (user, cryptpwd, cryptmail))
             query = """
@@ -389,7 +389,7 @@ class UserDataMngr(DBConnection):
         query_params = ()
 
         # lazy eval
-        if edition is not None and edition.isdigit():
+        if edition is not None and (isinstance(edition, int) or edition.isdigit()):
             editions_where_clause = "AND events.edition = ?"
             if userid:
                 query_params = (userid, eventtype, edition, eventtype, edition)
@@ -506,10 +506,13 @@ class UserDataMngr(DBConnection):
             if alarm == "":
                 continue
             try:
-                sdict[alarm]["alarm"] = True
+                sdict[int(alarm)]["alarm"] = True
             except KeyError:
                 # Do the dirty pass, but this most likely happens because user tries
                 # to load an edition that has no discord alarms set.
+                pass
+            except ValueError:
+                # shouldnt happen with normal use
                 pass
         return sdict
 
@@ -553,6 +556,18 @@ class UserDataMngr(DBConnection):
                 """
         self._cursor.execute(query, (userid, eventtype, mapid, diff, diff))
         self._connection.commit()
+
+    def get_map_difficulty(
+        self, userid: int, eventtype: str, kacky_id: int, version: str = ""
+    ):
+        query = """
+                    SELECT map_diff FROM spreadsheet
+                    INNER JOIN maps ON spreadsheet.map_id = maps.id
+                    INNER JOIN events ON maps.kackyevent = events.id
+                    WHERE user_id = ? AND events.type = ? AND maps.kacky_id_int = ? AND maps.map_version = ?;
+                """
+        self._cursor.execute(query, (userid, eventtype, kacky_id, version))
+        return self._cursor.fetchall()
 
     def set_password(self, userid: int, newpwd: str):
         query = "UPDATE kack_users SET password = ? WHERE id = ?;"
@@ -617,6 +632,12 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(token_delete_query, (token,))
         self._connection.commit()
         return True
+
+    def delete_user(self, userid: int):
+        self._cursor.execute("DELETE FROM spreadsheet WHERE user_id = ?", (userid,))
+        self._cursor.execute("DELETE FROM user_fields WHERE id = ?", (userid,))
+        self._cursor.execute("DELETE FROM kack_users WHERE id = ?", (userid,))
+        self._connection.commit()
 
     def fetchone_and_only_one(self):
         qres = self._cursor.fetchall()

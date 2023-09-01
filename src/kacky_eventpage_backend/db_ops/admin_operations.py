@@ -10,7 +10,7 @@ class AdminOperators(DBConnection):
             INNER JOIN maps ON worldrecords.map_id = maps.id
             INNER JOIN events ON events.id = maps.kackyevent
             SET
-                worldrecords.score = 9999999,
+                worldrecords.score = 1,
                 worldrecords.nickname = "reset_by_admin",
                 worldrecords.login = "reset_by_admin"
             WHERE events.type = ? AND kacky_id_int = ?
