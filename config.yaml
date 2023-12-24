@@ -14,6 +14,7 @@ enable_stats_page: False # Turning this on provides a DDOS attack vector
 enable_discord_bot: True
 
 # META INFO
+compstart: 17.08.2023 20:00
 compend: 17.09.2023 22:00
 eventtype: KR # [KK, KR, KX]
 edition: 4 # edition of the eventtype
@@ -46,3 +47,4 @@ dbname: kacky_backend_rebuild
 # TESTING MODE
 testing_mode: 0
 testing_compend: 30.01.2050 22:00
+testing_compstart: 30.01.2023 22:00

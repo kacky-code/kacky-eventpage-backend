@@ -55,12 +55,17 @@ def get_pagedata(login: str = ""):
 
     mdb = MiscDBOperators(config, secrets)
     fins = {}
+    difficulties = {}
     if login != "":
         r = requests.get(
             f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
         )
         if r.ok:
             fins = r.json()
+        with UserDataMngr(config, secrets) as um:
+            difficulties = um.get_user_map_difficulties(
+                current_user.get_id(), config["eventtype"]
+            )
 
     for name, val in api.serverinfo.items():
         tmpdict = {}
@@ -68,12 +73,14 @@ def get_pagedata(login: str = ""):
         tmpdict["serverDifficulty"] = val.difficulty
         tmpdict["maps"] = []
         for m in val.playlist.get_playlist_from_now():
+            diff = difficulties.get(m, 0)
             mapdict = {
                 "number": m,
                 "author": mdb.get_map_author(
                     m, config["eventtype"], int(config["edition"])
                 ),
                 "finished": str(m) in fins,
+                "difficulty": diff["map_diff"] if diff else 0,
             }
             tmpdict["maps"].append(mapdict)
         tmpdict["timeLimit"] = val.timelimit
@@ -524,9 +531,40 @@ def event_status():
         compend = datetime.datetime.strptime(
             config["testing_compend"], "%d.%m.%Y %H:%M"
         )
+        compstart = datetime.datetime.strptime(
+            config["testing_compstart"], "%d.%m.%Y %H:%M"
+        )
+        if flask.request.args.get("forcephase", None) == "active":
+            return json.dumps(
+                {
+                    "status": "active",
+                    "type": config["eventtype"],
+                    "edition": config["edition"],
+                }
+            )
+        elif flask.request.args.get("forcephase", None) == "post":
+            return json.dumps(
+                {
+                    "status": "post",
+                    "type": config["eventtype"],
+                    "edition": config["edition"],
+                }
+            )
+        elif flask.request.args.get("forcephase", None) == "pre":
+            return json.dumps(
+                {
+                    "status": "pre",
+                    "type": config["eventtype"],
+                    "edition": config["edition"],
+                    "start": compstart.isoformat(),
+                }
+            )
+        elif flask.request.args.get("forcephase", None) == "offseason":
+            return json.dumps({"status": "offseason"})
     else:
+        compstart = datetime.datetime.strptime(config["compstart"], "%d.%m.%Y %H:%M")
         compend = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M")
-    if datetime.datetime.now() < compend:
+    if compstart <= datetime.datetime.now() <= compend:
         return json.dumps(
             {
                 "status": "active",
@@ -542,7 +580,16 @@ def event_status():
                 "edition": config["edition"],
             }
         )
-    return json.dumps({"status": "over"})
+    elif compstart - datetime.timedelta(days=30) < datetime.datetime.now() <= compstart:
+        return json.dumps(
+            {
+                "status": "pre",
+                "type": config["eventtype"],
+                "edition": config["edition"],
+                "start": compstart.isoformat(),
+            }
+        )
+    return json.dumps({"status": "offseason"})
 
 
 @app.route("/events", methods=["GET", "POST"])

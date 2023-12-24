@@ -569,6 +569,26 @@ class UserDataMngr(DBConnection):
         self._cursor.execute(query, (userid, eventtype, kacky_id, version))
         return self._cursor.fetchall()
 
+    def get_user_map_difficulties(self, userid: int, eventtype: str):
+        query = """
+            SELECT spreadsheet.map_diff, maps.kacky_id_int, maps.map_version
+            FROM spreadsheet
+            INNER JOIN maps ON spreadsheet.map_id = maps.id
+            INNER JOIN events ON maps.kackyevent = events.id
+            WHERE spreadsheet.user_id = ? AND events.type = ?;
+        """
+        self._cursor.execute(query, (userid, eventtype))
+        # get column names to build a dictionary as result
+        columns = [col[0] for col in self._cursor.description]
+        qres = self._cursor.fetchall()
+        # make a dict from the result set
+        diff_dict = [dict(zip(columns, row)) for row in qres]
+        # make kacky_ids the key of a dict containing all the data (do this in
+        # an extra step to use `kacky_id` key from the dict instead of some
+        # hardcoded array position. Slightly more work, but should be fine
+        diff_dict = {row["kacky_id_int"]: row for row in diff_dict}
+        return diff_dict
+
     def set_password(self, userid: int, newpwd: str):
         query = "UPDATE kack_users SET password = ? WHERE id = ?;"
         self._cursor.execute(query, (newpwd, userid))
