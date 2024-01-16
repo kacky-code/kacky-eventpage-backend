@@ -1,0 +1,28 @@
+services:
+  eventpage_backend:
+    container_name: eventpage_backend
+    depends_on:
+      - mariadb_serv
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 5005:5005
+    volumes:
+      - ./config.yaml:/eventpage_backend/configurations/config.yaml
+      - ./secrets.yaml:/eventpage_backend/configurations/secrets.yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - CONFIG_FILE=/eventpage_backend/configurations/config.yaml
+      - SECRETS_FILE=/eventpage_backend/configurations/secrets.yaml
+
+  mariadb_serv:
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: CVaLzUTMjcdgB4HCdsLhdUkEnSud
+      MYSQL_DATABASE: kacky_backend_rebuild
+    ports:
+      - 3306:3306
+    volumes:
+      - ./setup_utils/init.sql:/docker-entrypoint-initdb.d/init.sql
