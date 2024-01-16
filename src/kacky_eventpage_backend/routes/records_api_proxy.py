@@ -1,14 +1,10 @@
 import logging
-from pathlib import Path
 
 import flask
 import requests
-import yaml
 from flask import Blueprint
 
-# Read flask secret (required for flask.flash and flask_login)
-with open(Path(__file__).parents[3] / "secrets.yaml", "r") as secfile:
-    secrets = yaml.load(secfile, Loader=yaml.FullLoader)
+from kacky_eventpage_backend import secrets
 
 records_api_proxy_blueprint = Blueprint("records_api_proxy", __name__)
 headers = {"X-ApiKey": secrets["records_api_key"]}

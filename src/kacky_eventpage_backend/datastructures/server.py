@@ -1,11 +1,11 @@
 import datetime
 import logging
-from pathlib import Path
+import os
 
 import yaml
 
-# from kacky_eventpage_backend.tm_string.tm_format_resolver import TMstr
 from tmformatresolver import TMString
+from kacky_eventpage_backend import servers_file
 
 from kacky_eventpage_backend.datastructures.playlist import PlaylistHandler
 
@@ -18,7 +18,7 @@ class ServerInfo:
         self.id = self.name.string.split(" ")[-1]
 
         if self.config["playlist"] == "custom":
-            with open(Path(__file__).parents[3] / "servers.yaml") as mf:
+            with open(servers_file) as mf:
                 server_conf = yaml.load(mf, Loader=yaml.FullLoader)
             self.playlist = PlaylistHandler(config, server_conf[name.string]["maps"])
             self.servernum = server_conf[name.string]["server_number"]

@@ -1,20 +1,12 @@
 import requests
-import yaml
 
+from kacky_eventpage_backend import config, secrets
 from kacky_eventpage_backend.db_ops.db_base import DBConnection
 
 TMX_PACK_ID = 10261488
 EVENTTYPE = "KK"
 
 if __name__ == "__main__":
-    # Reading config file
-    with open("config.yaml", "r") as conffile:
-        config = yaml.load(conffile, Loader=yaml.FullLoader)
-
-    # Read flask secret (required for flask.flash and flask_login)
-    with open("secrets.yaml", "r") as secfile:
-        secrets = yaml.load(secfile, Loader=yaml.FullLoader)
-
     backend = DBConnection(config, secrets)
 
     if EVENTTYPE == "KK":

@@ -1,9 +1,7 @@
-import yaml
+# rename import as gunicorn das internal `config` module
+from src.kacky_eventpage_backend import config as conf
 
-with open("config.yaml", "r") as c:
-    conffile = yaml.load(c, yaml.FullLoader)
-
-workers = conffile["workers"]
-threads = conffile["threads"]
-bind = f"{conffile['bind_hosts']}:{conffile['port']}"
+workers = conf["workers"]
+threads = conf["threads"]
+bind = f"{conf['bind_hosts']}:{conf['port']}"
 wsgi_app = "kacky_eventpage_backend.app:app"

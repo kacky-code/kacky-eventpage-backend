@@ -9,7 +9,6 @@ from typing import Any, Tuple
 import flask
 import flask_restful
 import requests
-import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_cors import CORS
 from flask_jwt_extended import (
@@ -21,6 +20,7 @@ from flask_jwt_extended import (
 )
 from tmformatresolver import TMString
 
+from kacky_eventpage_backend import secrets, config
 from kacky_eventpage_backend.db_ops.admin_operations import AdminOperators
 from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
@@ -32,7 +32,6 @@ from kacky_eventpage_backend.usermanagement.user_session_handler import User
 
 app = flask.Flask(__name__)
 jwt = JWTManager(app)
-config = {}
 CORS(app)
 app.config["CORS_HEADERS"] = "Content-Type"
 
@@ -1547,45 +1546,13 @@ def log_access(route: str, logged_in: bool = False):
 #   | | | | | | (_| | | | | |
 #   |_| |_| |_|\__,_|_|_| |_|
 #
-# Reading config file
-with open(Path(__file__).parents[2] / "config.yaml", "r") as conffile:
-    config = yaml.load(conffile, Loader=yaml.FullLoader)
 
-# Read flask secret (required for flask.flash and flask_login)
-with open(Path(__file__).parents[2] / "secrets.yaml", "r") as secfile:
-    secrets = yaml.load(secfile, Loader=yaml.FullLoader)
-    app.secret_key = secrets["flask_secret"]
-    app.config["JWT_SECRET_KEY"] = secrets["jwt_secret"]
 
 MAPIDS = MiscDBOperators(config, secrets).get_map_kackyIDs_for_event(
     config["eventtype"], config["edition"]
 )
 # build numbers, ignoring potential '[vX]'s
 MAPIDS = (min(MAPIDS), max(MAPIDS))
-
-if config["logtype"] == "STDOUT":
-    pass
-    logging.basicConfig(format="%(name)s - %(levelname)s - %(message)s")
-# YES, this totally ignores threadsafety. On the other hand, it is quite safe to assume
-# that it only will occur very rarely that things get logged at the same time in this
-# usecase. Furthermore, logging is absolutely not critical in this case and mostly used
-# for debugging. As long as the
-# SQLite DB doesn't break, we're safe!
-elif config["logtype"] == "FILE":
-    config["logfile"] = config["logfile"].replace("~", os.getenv("HOME"))
-    if not os.path.dirname(config["logfile"]) == "" and not os.path.exists(
-        os.path.dirname(config["logfile"])
-    ):
-        os.mkdir(os.path.dirname(config["logfile"]))
-    f = open(os.path.join(os.path.dirname(__file__), config["logfile"]), "w+")
-    f.close()
-    logging.basicConfig(
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        filename=config["logfile"],
-    )
-else:
-    print("ERROR: Logging not correctly configured!")
-    exit(1)
 
 api = KackyAPIHandler(config, secrets)
 
@@ -1600,6 +1567,9 @@ if config["log_visits"]:
     f = open(config["visits_logfile"], "a+")
     f.close()
 
+# Set up flask secrets
+app.secret_key = secrets["flask_secret"]
+app.config["JWT_SECRET_KEY"] = secrets["jwt_secret"]
 # Set up JWT
 app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 app.config["JWT_HEADER_NAME"] = "Authorization"
