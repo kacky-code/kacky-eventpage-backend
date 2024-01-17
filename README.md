@@ -1,13 +1,21 @@
-# kacky_schedule
-Webtool for KK/KR/KX events - Check which maps are currently played and when a map will be played again. Also can calculate, at how long it will be until a map gets queued. Besides a web frontend, this project also features a Discord bot, which allows users to be notified when a specific map comes up.
+# Hunting Event - Website Backend
+Backend for [Hunting Event - Website Frontend](https://github.com/kacky-code/kacky-eventpage-frontend).
 
 # Setup
-After cloning the project, run ``pip install .`` in the project directory.
-This installs all dependencies and sets up two commands ``start_kacky_schedule`` and ``start_kacky_discord_alarm`` which start the backend server or discord bot respectively.
-You'll also have to adjust `config.yaml` (general settings), `secrets.yaml` (Well.. secret stuff. Bot/API keys, etc) and `servers.yaml` (Information on servers for current event).
+The project has three user configurable files. `config.yaml` for general application parameters, `secrets.yaml` for secrets and passwords and `servers.yaml` to configure servers running in the event.
+Either place them in the repository's root directory or set them with the following environment variables:
+
+| Variable     | Value                 |
+|--------------|-----------------------|
+| CONFIG_FILE  | /path/to/config.yaml  |
+| SECRETS_FILE | /path/to/secrets.yaml |
+| SERVERS_FILE | /path/to/servers.yaml |
+
+The project uses Gunicorn as it's WSGI HTTP Server.
 
 ## Development Setup
-For developing, please install ``pip install -e .[dev]`` and execute ``pre-commit install`` to set up all commit hooks. They enforce code styles, etc.
+For developing, please install the development modules (e.g. ``pip install -e .[dev]``) and execute ``pre-commit install`` to set up all commit hooks. They enforce code styles, etc. on committing.
+`docker compose up` in the repo's root will set up a database with Kacky Events KK1-9 and KR1-4.
 
 # General Configuration `config.yaml`
 ## Required
