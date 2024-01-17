@@ -1,17 +1,12 @@
 # FLASK/GUNICORN PARAMETERS
 port: 5005
-bind_hosts: 127.0.0.1
+# bind_hosts: 127.0.0.1
+bind_hosts: 0.0.0.0
 workers: 12
 threads: 4
 
 # APPLICATION PARAMETERS
-install_dir: /var/www/flask/kacky-eventpage-backend
-cachetime: 60 # seconds
-mapchangetime_s: 45
-log_visits: 0 # 0, 1
-visits_logfile: visits.log # might require absolute path
-enable_stats_page: False # Turning this on provides a DDOS attack vector
-enable_discord_bot: True
+install_dir: /eventpage_backend
 
 # META INFO
 compstart: 2023-08-17T20:00
@@ -39,7 +34,7 @@ loglevel: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
 logger_name: KKmaptimes
 
 # DATABASE SETTINGS
-dbhost: localhost
+dbhost: mariadb_serv
 dbport: 3306
 dbname: kacky_backend_rebuild
 # dbuser and dbpwd in secrets.yaml need to be set!
