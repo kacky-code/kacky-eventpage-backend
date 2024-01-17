@@ -13,6 +13,9 @@ Either place them in the repository's root directory or set them with the follow
 
 The project uses Gunicorn as it's WSGI HTTP Server.
 
+Minimum required setup is creating a `secrets.yaml` (refer to `secrets.yaml.template`) and filling its fields.
+Setting `compstart` and `compend` in `config.yaml` so currently no event is running allows only setting `db*` fields in `config.yaml` and `secrets.yaml`, and produces a working environment with some minor features not working.
+
 ## Development Setup
 For developing, please install the development modules (e.g. ``pip install -e .[dev]``) and execute ``pre-commit install`` to set up all commit hooks. They enforce code styles, etc. on committing.
 `docker compose up` in the repo's root will set up a database with Kacky Events KK1-9 and KR1-4.
@@ -25,7 +28,7 @@ For developing, please install the development modules (e.g. ``pip install -e .[
 | `bind_host`   | int                | IP to bind on. 0.0.0.0 binds all (use with Docker).                                          |
 | `workers`     | int                | Number of Gunicorn workers. Recommended: `(2 x $num_cores) + 1`.                             |
 | `threads`     | int                | Number of threads within each worker. Assumes worker `gthread`.                              |
-| `comstart`    | ISO8601 datetime   | Start-date of event. ISO8601.                                                                |
+| `compstart`   | ISO8601 datetime   | Start-date of event. ISO8601.                                                                |
 | `compend`     | ISO8601 datetime   | End-date of event. ISO8601.                                                                  |
 | `eventtype`   | str                | Type of currently running event.                                                             |
 | `edition`     | int                | Edition of currently running event.                                                          |
