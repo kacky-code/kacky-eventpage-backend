@@ -22,7 +22,5 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: CVaLzUTMjcdgB4HCdsLhdUkEnSud
       MYSQL_DATABASE: kacky_backend_rebuild
-    ports:
-      - 3306:3306
     volumes:
       - ./setup_utils/init.sql:/docker-entrypoint-initdb.d/init.sql
