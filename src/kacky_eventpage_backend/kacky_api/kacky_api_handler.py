@@ -65,14 +65,14 @@ class KackyAPIHandler:
         if not self._serverinfo_mutex.acquire(blocking=False):
             self.logger.debug("mutex for update is held, update already in progress")
             return
-        compend = dt.strptime(self.config["compend"], "%d.%m.%Y %H:%M")
+        compend = dt.fromisoformat(self.config["compend"])
         if compend < dt.now():
             self.logger.debug("competition over, aborting serverinfo update")
             self._serverinfo_mutex.release()
             return
         if (
             self.config["testing_mode"]
-            and dt.strptime(self.config["testing_compend"], "%d.%m.%Y %H:%M") < dt.now()
+            and dt.fromisoformat(self.config["testing_compend"]) < dt.now()
         ):
             self.logger.debug("TESTING: competition over, aborting serverinfo update")
             self._serverinfo_mutex.release()

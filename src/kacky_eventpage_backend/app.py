@@ -20,7 +20,7 @@ from flask_jwt_extended import (
 )
 from tmformatresolver import TMString
 
-from kacky_eventpage_backend import secrets, config
+from kacky_eventpage_backend import config, secrets
 from kacky_eventpage_backend.db_ops.admin_operations import AdminOperators
 from kacky_eventpage_backend.db_ops.db_operator import MiscDBOperators
 from kacky_eventpage_backend.kacky_api.kacky_api_handler import KackyAPIHandler
@@ -83,12 +83,9 @@ def get_pagedata(login: str = ""):
     # use "$" as default login, because that char is not a legal login (at least in tmnf)
     curtime = datetime.datetime.now()
     if config["testing_mode"]:
-        ttl = (
-            datetime.datetime.strptime(config["testing_compend"], "%d.%m.%Y %H:%M")
-            - curtime
-        )
+        ttl = datetime.datetime.fromisoformat(config["testing_compend"]) - curtime
     else:
-        ttl = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M") - curtime
+        ttl = datetime.datetime.fromisoformat(config["compend"]) - curtime
     timeleft = ttl.seconds
 
     response = {"servers": [], "comptimeLeft": timeleft}
@@ -790,12 +787,8 @@ def event_status():
     """
     log_access("/eventstatus - GET", None)
     if config["testing_mode"]:
-        compend = datetime.datetime.strptime(
-            config["testing_compend"], "%d.%m.%Y %H:%M"
-        )
-        compstart = datetime.datetime.strptime(
-            config["testing_compstart"], "%d.%m.%Y %H:%M"
-        )
+        compend = datetime.datetime.fromisoformat(config["testing_compend"])
+        compstart = datetime.datetime.fromisoformat(config["testing_compstart"])
         if flask.request.args.get("forcephase", None) == "active":
             return flask.jsonify(
                 {
@@ -824,8 +817,8 @@ def event_status():
         elif flask.request.args.get("forcephase", None) == "offseason":
             return flask.jsonify({"status": "offseason"})
     else:
-        compstart = datetime.datetime.strptime(config["compstart"], "%d.%m.%Y %H:%M")
-        compend = datetime.datetime.strptime(config["compend"], "%d.%m.%Y %H:%M")
+        compstart = datetime.datetime.fromisoformat(config["compstart"])
+        compend = datetime.datetime.fromisoformat(config["compend"])
     if compstart <= datetime.datetime.now() <= compend:
         return flask.jsonify(
             {
@@ -1560,13 +1553,6 @@ api = KackyAPIHandler(config, secrets)
 logger = logging.getLogger(config["logger_name"])
 logger.setLevel(eval("logging." + config["loglevel"]))
 
-if config["log_visits"]:
-    # Enable logging of visitors to dedicated file. More comfortable than using system
-    # log to count visitors.
-    # Counting with "cat visits.log | wc -l"
-    f = open(config["visits_logfile"], "a+")
-    f.close()
-
 # Set up flask secrets
 app.secret_key = secrets["flask_secret"]
 app.config["JWT_SECRET_KEY"] = secrets["jwt_secret"]
@@ -1579,9 +1565,7 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
 )  # Why 100? idk, looks cool
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 
-if datetime.datetime.now() < datetime.datetime.strptime(
-    config["compend"], "%d.%m.%Y %H:%M"
-):
+if datetime.datetime.now() < datetime.datetime.fromisoformat(config["compend"]):
     # Update data from kacky API every minute
     scheduler = BackgroundScheduler()
     scheduler.add_job(
