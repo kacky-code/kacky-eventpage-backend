@@ -36,8 +36,8 @@ class KackyAPIHandler:
 
     def __getattr__(self, item):
         if item == "serverinfo":
-            # if self._cache_update_required("serverinfo", 60):
-            #     self._update_server_info()
+            if self._cache_update_required("serverinfo", 60):
+                self._update_server_info()
             return self._serverinfo
         if item == "leaderboard":
             if self._cache_update_required("leaderboard", 600):
@@ -62,11 +62,20 @@ class KackyAPIHandler:
             return 1
 
     def _update_server_info(self):
-        # if not self._serverinfo_mutex.acquire(blocking=False):
-        #     self.logger.debug("mutex for update is held, update already in progress")
-        #     return
-        compend = dt.strptime(self.config["compend"], "%d.%m.%Y %H:%M")
+        if not self._serverinfo_mutex.acquire(blocking=False):
+            self.logger.debug("mutex for update is held, update already in progress")
+            return
+        compend = dt.fromisoformat(self.config["compend"])
         if compend < dt.now():
+            self.logger.debug("competition over, aborting serverinfo update")
+            self._serverinfo_mutex.release()
+            return
+        if (
+            self.config["testing_mode"]
+            and dt.fromisoformat(self.config["testing_compend"]) < dt.now()
+        ):
+            self.logger.debug("TESTING: competition over, aborting serverinfo update")
+            self._serverinfo_mutex.release()
             return
         krdata = self._do_api_request("serverinfo")
 
@@ -79,11 +88,7 @@ class KackyAPIHandler:
                 )
                 continue
 
-            if (
-                serverdata["name"] is False
-                or serverdata["current_map"] is False
-                or serverdata["time_played"] is False
-            ):
+            if serverdata["current_map"] is False or serverdata["time_played"] is False:
                 self.logger.error(
                     f"updating server '{sid}' - ERROR: a field contained a bad value"
                 )
@@ -91,17 +96,15 @@ class KackyAPIHandler:
 
             self.logger.debug(f"new data: {serverdata}")
             # check for first run
-            if serverdata["name"] not in self._serverinfo:
+            if sid not in self._serverinfo:
                 # this is the first run, need to build objects
-                self._serverinfo[serverdata["name"]] = ServerInfo(
-                    TMString(serverdata["name"]), self.config
-                )
+                self._serverinfo[sid] = ServerInfo(TMString(sid), self.config)
 
             # update existing ServerInfo object
-            self._serverinfo[serverdata["name"]].update_info(serverdata)
+            self._serverinfo[sid].update_info(serverdata)
 
         self._last_update["serverinfo"] = dt.now()
-        # self._serverinfo_mutex.release()
+        self._serverinfo_mutex.release()
 
     def get_fin_info(self, tmlogin):
         findata = self._do_api_request(
@@ -114,7 +117,7 @@ class KackyAPIHandler:
         try:
             # TODO: change to actual api
             # krdata = requests.get(
-            #                       "https://kk.kackiestkacky.com/api/",
+            #                       "https://kackyreloaded.com/api/",
             #                       params={"password": self.api_pwd}
             #          ).json()
             krdata = TESTING_DATA["leaderboard"]
@@ -137,7 +140,10 @@ class KackyAPIHandler:
         # check for testing mode
         if request_params is None:
             request_params = {}
+        self.logger.debug("Requesting data")
         if self.config["testing_mode"]:
+            self.logger.info("testing data")
+            self.logger.info(TESTING_DATA[value])
             return TESTING_DATA[value]
         self.logger.info(f"Updating {value} from Kacky API.")
 
@@ -148,14 +154,15 @@ class KackyAPIHandler:
         try:
             if value == "serverinfo":
                 qres = requests.get(
-                    "https://kackiestkacky.com/api/",
+                    "https://kackyreloaded.com/api/",
                     params=request_params,
                     timeout=15,
                 )
             elif value == "userfins":
                 qres = requests.post(
-                    "https://kackiestkacky.com/api/",
+                    "https://kackyreloaded.com/api/",
                     data=request_params,
+                    timeout=15,
                 )
             elif value == "leaderboard":
                 qres = ""

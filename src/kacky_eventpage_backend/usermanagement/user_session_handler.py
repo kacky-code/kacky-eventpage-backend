@@ -49,6 +49,11 @@ class User:
         dbdata = self.cursor.fetchall()
         if len(dbdata) == 0:
             return None
+        elif len(dbdata) > 1:
+            self.logger.critical(
+                f"Username {self.username} is multiple times in the database! How even?"
+            )
+            return None
         else:
             return self
 
@@ -110,3 +115,14 @@ class User:
                 return True
             else:
                 return False
+
+    def is_admin(self):
+        query = "SELECT is_admin FROM kack_users WHERE username = ?;"
+        self.cursor.execute(query, (self.username,))
+        dbdata = self.cursor.fetchall()
+        if len(dbdata) > 1:
+            self.logger.critical(
+                f"Username {self.username} is multiple times in the database! How even?"
+            )
+            return False
+        return dbdata[0][0]

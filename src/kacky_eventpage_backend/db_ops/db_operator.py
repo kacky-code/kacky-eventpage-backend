@@ -1,17 +1,24 @@
+from tmformatresolver import TMString
+
 from kacky_eventpage_backend.db_ops.db_base import DBConnection
 
 
 class MiscDBOperators(DBConnection):
-    def get_map_author(self, kackyid: int):
-        query = "SELECT author FROM maps WHERE kacky_id = ?"
-        self._cursor.execute(query, (kackyid,))
+    def get_map_author(self, kackyid: int, eventtype: str, edition: int):
+        query = """
+                SELECT author
+                FROM maps
+                INNER JOIN events ON maps.kackyevent = events.id
+                WHERE kacky_id = ? AND events.type = ? AND events.edition = ?
+                """
+        self._cursor.execute(query, (kackyid, eventtype, edition))
         return self._cursor.fetchone()[0]
 
     def get_map_kackyIDs_for_event(
         self, eventtype: str, edition: int, raw: bool = False
     ):
         query = """
-                SELECT kacky_id
+                SELECT kacky_id_int
                 FROM maps
                 INNER JOIN events on maps.kackyevent = events.id
                 WHERE events.type = ? AND events.edition = ?
@@ -73,3 +80,19 @@ class MiscDBOperators(DBConnection):
         if raw:
             self._cursor.fetchall()
         return {d[0]: d[1] for d in self._cursor.fetchall()}
+
+    def get_events(self, include_ids: bool = False, include_visibility: bool = False):
+        if include_visibility:
+            query = f"SELECT {'id, ' if include_ids else ''} name, type, edition, visible FROM events;"
+        else:
+            query = f"SELECT {'id, ' if include_ids else ''} name, type, edition FROM events WHERE visible = TRUE;"
+        self._cursor.execute(query, ())
+        columns = [col[0] for col in self._cursor.description]
+        events = [dict(zip(columns, row)) for row in self._cursor.fetchall()]
+
+        def make_name_tmstring(d):
+            d["name"] = TMString(d["name"]).string
+            return d
+
+        events = [make_name_tmstring(ev) for ev in events]
+        return events

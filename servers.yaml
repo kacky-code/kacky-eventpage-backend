@@ -1,105 +1,317 @@
-# This file is used when "playlist" is set to "custom" in config.yaml
-# Format:
-# server name as a string
-#   - color: (some value that sets this server apart, e. g. one of ("white", "green", "easy", "hard", "imp")
-#   - timelimit: 42
-#   - maps: # kacky IDs here in order of playing
-#     - 1
-#     - 2
-#     - 3
-
-Kackiest Kacky 7 - Server 1:
+Kacky Reloaded 4 - White 1:
   server_number: 1
   difficulty: white
   timelimit: 15
-  server_login: sky_event
+  server_login: a
   maps:
-    - 201
-    - 202
-    - 204
-    - 205
-    - 206
-    - 208
-    - 210
-    - 211
-    - 212
-    - 215
-    - 219
-    - 220
-    - 223
-    - 227
-    - 231
+    - 228
+    - 238
+    - 240
+    - 241
+    - 242
+    - 245
+    - 246
+    - 256
+    - 258
+    - 260
+    - 263
+    - 267
+    - 268
+    - 269
+    - 277
+    - 278
+    - 292
+    - 295
+    - 297
+    - 300
+
+
+Kacky Reloaded 4 - White 2:
+  server_number: 2
+  difficulty: white
+  timelimit: 15
+  server_login: a
+  maps:
+    - 228
+    - 238
+    - 240
+    - 241
+    - 242
+    - 245
+    - 246
+    - 256
+    - 258
+    - 260
+    - 263
+    - 267
+    - 268
+    - 269
+    - 277
+    - 278
+    - 292
+    - 295
+    - 297
+    - 300
+
+Kacky Reloaded 4 - White 3:
+  server_number: 3
+  difficulty: white
+  timelimit: 15
+  server_login: a
+  maps:
+    - 228
+    - 238
+    - 240
+    - 241
+    - 242
+    - 245
+    - 246
+    - 256
+    - 258
+    - 260
+    - 263
+    - 267
+    - 268
+    - 269
+    - 277
+    - 278
+    - 292
+    - 295
+    - 297
+    - 300
+
+Kacky Reloaded 4 - White 4:
+  server_number: 4
+  difficulty: white
+  timelimit: 15
+  server_login: a
+  maps:
+    - 228
+    - 238
+    - 240
+    - 241
+    - 242
+    - 245
+    - 246
+    - 256
+    - 258
+    - 260
+    - 263
+    - 267
+    - 268
+    - 269
+    - 277
+    - 278
+    - 292
+    - 295
+    - 297
+    - 300
+
+Kacky Reloaded 4 - Green 1:
+  server_number: 5
+  difficulty: green
+  timelimit: 15
+  server_login: a
+  maps:
+    - 229
+    - 234
     - 235
     - 236
     - 237
-    - 238
+    - 239
     - 244
-    - 245
-    - 246
-    - 247
-    - 248
-    - 252
+    - 250
+    - 253
     - 254
     - 259
-    - 260
     - 262
-    - 266
-    - 267
-    - 269
-    - 272
-    - 274
-    - 275
-
-Kackiest Kacky 7 - Server 2:
-  server_number: 2
-  difficulty: blue
-  timelimit: 15
-  server_login: sky_event2
-  maps:
-    - 203
-    - 207
-    - 209
-    - 213
-    - 214
-    - 216
-    - 221
-    - 224
-    - 225
-    - 226
-    - 229
-    - 230
-    - 233
-    - 242
-    - 243
-    - 249
-    - 250
-    - 251
-    - 253
-    - 255
-    - 257
     - 264
     - 265
-    - 268
-    - 270
-
-Kackiest Kacky 7 - Server 3:
-  server_number: 3
-  difficulty: black
-  timelimit: 20
-  server_login: sky_event3
-  maps:
-    - 217
-    - 218
-    - 222
-    - 228
-    - 232
-    - 234
-    - 239
-    - 240
-    - 241
-    - 256
-    - 258
-    - 261
-    - 263
     - 271
     - 273
+    - 275
+    - 282
+    - 283
+    - 288
+
+Kacky Reloaded 4 - Green 2:
+  server_number: 6
+  difficulty: green
+  timelimit: 15
+  server_login: a
+  maps:
+    - 229
+    - 234
+    - 235
+    - 236
+    - 237
+    - 239
+    - 244
+    - 250
+    - 253
+    - 254
+    - 259
+    - 262
+    - 264
+    - 265
+    - 271
+    - 273
+    - 275
+    - 282
+    - 283
+    - 288
+
+Kacky Reloaded 4 - Green 3:
+  server_number: 7
+  difficulty: green
+  timelimit: 15
+  server_login: a
+  maps:
+    - 229
+    - 234
+    - 235
+    - 236
+    - 237
+    - 239
+    - 244
+    - 250
+    - 253
+    - 254
+    - 259
+    - 262
+    - 264
+    - 265
+    - 271
+    - 273
+    - 275
+    - 282
+    - 283
+    - 288
+
+Kacky Reloaded 4 - Blue 1:
+  server_number: 8
+  difficulty: blue
+  timelimit: 15
+  server_login: a
+  maps:
+    - 226
+    - 230
+    - 231
+    - 232
+    - 247
+    - 249
+    - 251
+    - 252
+    - 255
+    - 261
+    - 274
+    - 276
+    - 280
+    - 281
+    - 286
+    - 289
+    - 293
+    - 294
+    - 296
+    - 298
+
+Kacky Reloaded 4 - Blue 2:
+  server_number: 9
+  difficulty: blue
+  timelimit: 15
+  server_login: a
+  maps:
+    - 226
+    - 230
+    - 231
+    - 232
+    - 247
+    - 249
+    - 251
+    - 252
+    - 255
+    - 261
+    - 274
+    - 276
+    - 280
+    - 281
+    - 286
+    - 289
+    - 293
+    - 294
+    - 296
+    - 298
+
+Kacky Reloaded 4 - Blue 3:
+  server_number: 10
+  difficulty: blue
+  timelimit: 15
+  server_login: a
+  maps:
+    - 226
+    - 230
+    - 231
+    - 232
+    - 247
+    - 249
+    - 251
+    - 252
+    - 255
+    - 261
+    - 274
+    - 276
+    - 280
+    - 281
+    - 286
+    - 289
+    - 293
+    - 294
+    - 296
+    - 298
+
+
+Kacky Reloaded 4 - Red 1:
+  server_number: 11
+  difficulty: red
+  timelimit: 20
+  server_login: a
+  maps:
+    - 227
+    - 243
+    - 248
+    - 257
+    - 266
+    - 270
+    - 279
+    - 284
+    - 291
+    - 299
+
+Kacky Reloaded 4 - Red 2:
+  server_number: 12
+  difficulty: red
+  timelimit: 20
+  server_login: a
+  maps:
+    - 227
+    - 243
+    - 248
+    - 257
+    - 266
+    - 270
+    - 279
+    - 284
+    - 291
+    - 299
+
+Kacky Reloaded 4 - Black:
+  server_number: 13
+  difficulty: black
+  timelimit: 20
+  server_login: a
+  maps:
+    - 233
+    - 272
+    - 285
+    - 287
+    - 290
