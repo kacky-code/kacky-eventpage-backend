@@ -9,7 +9,7 @@ You'll also have to adjust `config.yaml` (general settings), `secrets.yaml` (Wel
 ## Development Setup
 For developing, please install ``pip install -e .[dev]`` and execute ``pre-commit install`` to set up all commit hooks. They enforce code styles, etc.
 
-# Configuration `config.yaml`
+# General Configuration `config.yaml`
 ## Required
 | Config Key    | Value              | Description                                                                                  |
 |---------------|--------------------|----------------------------------------------------------------------------------------------|
@@ -37,3 +37,20 @@ For developing, please install ``pip install -e .[dev]`` and execute ``pre-commi
 | `testing_mode`      | `(0, 1)`             | Enable/Disable testing mode. Enabling uses hardcoded example API responses.                                   |
 | `testing_compstart` | datetime str         | Start-date for a simulated active event.                                                                      |
 | `testing_compend`   | datetime str         | End-date for a simulated active event.                                                                        |
+
+# Secrets file `secrets.yaml`
+## Required
+| Key                | Value | Description                                                                        |
+|--------------------|-------|------------------------------------------------------------------------------------|
+| `api_pwd`          | str   | Password to get state information from the game servers.                           |
+| `flask_secret`     | str   | Salted secret for Flask. May not be used anymore, since flask-flash is not in use. |
+| `jwt_secret`       | str   | Secret for JWT                                                                     |
+| `sendgrip_api_key` | str   | API key for Sendgrid. Required to reset user passwords.                            |
+| `dbuser`           | str   | Username for the MySQL/MariaDB instance used with the backend.                     |
+| `dbpwd`            | str   | Password for the MySQL/MariaDB instance used with the backend.                     |
+| `records_api_key`  | str   | API key for records.api.gg. Valid key allows unlimited requests.                   |
+
+## Optional
+| Key            | Value | Description                                                                          |
+|----------------|-------|--------------------------------------------------------------------------------------|
+| `msg_send_pwd` | str   | Password to send messages to streamer dashboard (/post, /target, /stream endpoints). |
