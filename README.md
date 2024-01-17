@@ -54,3 +54,35 @@ For developing, please install ``pip install -e .[dev]`` and execute ``pre-commi
 | Key            | Value | Description                                                                          |
 |----------------|-------|--------------------------------------------------------------------------------------|
 | `msg_send_pwd` | str   | Password to send messages to streamer dashboard (/post, /target, /stream endpoints). |
+
+# Server Information `servers.yaml` (Used with `playlist: custom`)
+Each server must be defined as follows:
+```yaml
+Full Server Name:
+  server_number: int      # Identifier if multiple servers have the same difficulty (e.g. 1 or 2 with servers "White *1*" and "White *2*")
+  difficulty: (str, int)  # Difficulty identifier [("white", "blue", ...), ("easy", "medium", ...), ...]. Must match frontend.
+  timelimit: int          # Playtime for each map on the server.
+  server_login: str       # Trackmania login of the account. Only relevant for TMNF.
+  maps: list[int]         # Ordered list of maps played in the server
+```
+Multiple servers can be defined in the file on root level.
+`Full Server Name` must match the name as returned from Gameserver API (Readable text only without TM formatting syntax) since it's used as a key for mapping between its response and servers.yaml
+
+## Example:
+````yaml
+Kacky Reloaded 4 - White 1:
+  server_number: 1
+  difficulty: white
+  timelimit: 15
+  server_login: ""
+  maps:
+    - 228
+    - 238
+    - 240
+    - 241
+    - 242
+    - 245
+    - 246
+    - 256
+    - 258
+````
