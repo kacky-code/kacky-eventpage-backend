@@ -56,7 +56,7 @@ For developing, please install the development modules (e.g. ``pip install -e .[
 | `api_pwd`          | str   | Password to get state information from the game servers.                           |
 | `flask_secret`     | str   | Salted secret for Flask. May not be used anymore, since flask-flash is not in use. |
 | `jwt_secret`       | str   | Secret for JWT                                                                     |
-| `sendgrip_api_key` | str   | API key for Sendgrid. Required to reset user passwords.                            |
+| `sendgrid_api_key` | str   | API key for Sendgrid. Required to reset user passwords.                            |
 | `dbuser`           | str   | Username for the MySQL/MariaDB instance used with the backend.                     |
 | `dbpwd`            | str   | Password for the MySQL/MariaDB instance used with the backend.                     |
 | `records_api_key`  | str   | API key for records.api.gg. Valid key allows unlimited requests.                   |
