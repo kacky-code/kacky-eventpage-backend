@@ -1,0 +1,35 @@
+services:
+  eventpage_backend:
+    container_name: eventpage_backend
+    depends_on:
+      - mariadb_serv
+      mariadb_serv:
+          condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 5005:5005
+    volumes:
+      - ./config.yaml:/eventpage_backend/configurations/config.yaml
+      - ./secrets.yaml:/eventpage_backend/configurations/secrets.yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - CONFIG_FILE=/eventpage_backend/configurations/config.yaml
+      - SECRETS_FILE=/eventpage_backend/configurations/secrets.yaml
+
+  mariadb_serv:
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: CVaLzUTMjcdgB4HCdsLhdUkEnSud
+      MYSQL_DATABASE: kacky_backend_rebuild
+    volumes:
+      - ./setup_utils/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      start_period: 5s
+      start_interval: 10s
+      interval: 30s
+      timeout: 5s
+      retries: 3
