@@ -2,6 +2,7 @@ services:
   eventpage_backend:
     container_name: eventpage_backend
     depends_on:
+      - mariadb_serv
       mariadb_serv:
           condition: service_healthy
     build:
