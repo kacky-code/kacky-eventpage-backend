@@ -1,0 +1,1453 @@
+openapi: '3.0.2'
+info:
+  title: Kacky.gg API
+  version: '1.0'
+
+servers:
+  - url: https://api.kacky.gg
+  - url: https://devapi.kacky.gg
+
+tags:
+  - name: user
+    description: User operations like logging in, registering or profile management.
+  - name: event
+    description: Information about the currently running event.
+  - name: spreadsheet
+    description: Data on all events. User information is included if authenticated.
+  - name: admin
+    description: Administrative actions to manage wr, event and map data.
+  - name: player
+    description: Get player records and stats from gameservers.
+
+paths:
+  /login:
+    post:
+      tags:
+        - user
+      summary: Logs a user in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user
+                - pwd
+              properties:
+                user:
+                  description: Username of account
+                  type: string
+                pwd:
+                  description: Unhashed Password for User
+                  type: string
+              example:
+                user: corkscrew
+                pwd: hunter2
+      responses:
+        200:
+            description: Login successful.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    access_token:
+                      type: string
+                    expiration:
+                      type: string
+                example:
+                  access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDIzMTQxNywianRpIjoiZmYwNjFhZjItNzI4MS00ZWMzLTg0MGMtOTM2ZGJiN2FkZmY2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImNvcmtzY3JldyIsIm5iZiI6MTcwNDIzMTQxNywiZXhwIjoxNzEyODcxNDE3LCJpc0FkbWluIjoxfQ.hvOqipVwU1bsZWgFY7z3BzWwE67-KrcZHW2_S7HXzfo"
+                  expires: 1712867817.175027
+        401:
+            description: Login failed
+            content:
+              application/json:
+                schema:
+                  type: string
+                example: Unauthorized
+  /register:
+    post:
+      tags:
+        - user
+      summary: Registers a user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user
+                - pwd
+              properties:
+                user:
+                  description: Username of account
+                  type: string
+                pwd:
+                  description: Unhashed Password for User
+                  type: string
+      responses:
+        201:
+          description: Registration successful.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Created
+        409:
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Conflict
+  /usermgnt:
+    get:
+      tags:
+        - user
+      summary: Endpoint to get the JWT holder's account data.
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User profile found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tmnf:
+                    type: string
+                  tm20:
+                    type: string
+                  discord:
+                    type: string
+                example:
+                  tmnf: "corkscrew"
+                  tm20: "corkscrew-GER"
+                  discord: "corkscrew."
+    post:
+      tags:
+        - user
+      summary: Endpoint to update the JWT holder's account data.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tmnf:
+                  type: string
+                tm20:
+                  type: string
+                discord:
+                  type: string
+              example:
+                tmnf: "corkscrew"
+                tm20: "corkscrew-GER"
+                discord: "corkscrew."
+      responses:
+        200:
+          description: User profile updated.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+        500:
+          description: Error occured updating a provided value. Submitted values may have been stored partially.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Internal Server Error
+  /pwdreset:
+    post:
+      tags:
+        - user
+      summary: "Endpoint to request a password reset."
+      description: |
+                  Two step process:
+                  1. User requests a password reset by passing their mail and username.
+                     A token is generated and sent to the user's mail.
+                  2. User passes the token and their new password to this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required:
+                    - user
+                    - mail
+                  properties:
+                    user:
+                      description: Username of account
+                      type: string
+                    mail:
+                      description: Mail of account
+                      type: string
+                - type: object
+                  required:
+                    - token
+                    - pwd
+                  properties:
+                    token:
+                      description: Token sent to user's mail
+                      type: string
+                    pwd:
+                      description: New password for user
+                      type: string
+      responses:
+        200:
+          description: Step successful. Password reset requested or succeeded.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+        400:
+          description: Invalid body.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Bad Request
+        401:
+          description: Token invalid.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Unauthorized
+        500:
+          description: Token could not be sent.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Internal Server Error
+  /logout:
+    post:
+      tags:
+        - user
+      summary: Logs a user out by adding provided token to a Blacklist.
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Logout successful.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+
+  /dashboard:
+    get:
+      tags:
+        - event
+      summary: Provides information about server status.
+      description: |
+                  This endpoint provides information about the available servers, and their maps and timers.
+                  If authenticated, it also adds information for map difficulty and finishes.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        200:
+          description: Dashboard data provided.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+              example:
+                servers:
+                  - serverNumber: 1
+                    serverDifficulty: 1
+                    maps:
+                      - number: 1
+                        author: "nixion4"
+                        finished: true
+                        difficulty: 1
+                      - number: 2
+                        author: "nixion4"
+                        finished: false
+                        difficulty: 18
+                    timeLimit: 10
+                    timeLeft: 600
+                comptimeLeft: 600
+  /fin:
+    get:
+      tags:
+        - event
+      summary: JWT holder's finishes in the currently running event.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        200:
+          description: >
+            For not logged in users, an "empty" dictionary is returned, values contain no finishes.
+            Else, a dictionary containing the number of finishes and a list of map ids is returned.
+            Trackmania logins are retrieved from the database by the user's ID from provided JWT.
+            If no JWT is provided, `finishes` is set to 0 and `mapids` is an empty list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    finishes:
+                      type: integer
+                    mapids:
+                      type: array
+                      items:
+                        type: integer
+                example:
+                  - finishes: 2
+                    mapids:
+                      - -150
+                      - -120
+        400:
+          description: User set a bad TM login in profile.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Bad Request
+
+  /spreadsheet/{eventtype}:
+    post:
+      tags:
+        - spreadsheet
+      summary: Endpoint to update the spreadsheet.
+      description: |
+        Expects POST fields `mapid`, `diff`, `clip` OR `alarm` to be passed as JSON.
+        Early return if a value is invalid.
+        `mapid` is required, represents main key for updating stuff.
+        If `diff` is passed, the map's difficulty is updated.
+        If `clip` is passed, the map's clip is updated.
+        If `alarm` is passed, the the user changes discord notification settings for the map.
+        Returns early if a value is invalid.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventtype
+          in: path
+          description: Type of event to update.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mapid
+              properties:
+                mapid:
+                  type: integer
+                diff:
+                  type: integer
+                clip:
+                  type: boolean
+                alarm:
+                  type: boolean
+            example:
+              mapid: -150
+              diff: 1
+              clip: true
+              alarm: false
+      responses:
+        200:
+          description: Spreadsheet updated.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+        404:
+          description: Map not found.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Not Found
+
+  /spreadsheet:
+    get:
+      tags:
+        - event
+      summary: Schedule data for the currently running event.
+      description: |
+        Basically the spreadsheet, but with additional information when a map is next played and on which server.
+        If authenticated, user data is included.
+        If not authenticated, only map data is included.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        200:
+          description: Schedule data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleResponse"
+              # TODO: examples
+
+  /spreadsheet/{eventtype}/{edition}:
+    get:
+      tags:
+        - spreadsheet
+      summary: Spreadsheet for a specific event.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: eventtype
+          in: path
+          description: Type of event to get.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+        - name: edition
+          in: path
+          description: Edition of event to get.
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        200:
+          description: Spreadsheet data provided.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpreadsheetResponse"
+              # TODO: examples
+
+  /mapinfo/{eventtype}/{mapid}:
+    get:
+      tags:
+        - ""
+      summary: Endpoint to get information about a single map.
+      description: |
+        Returns information about a single map, identified by it's ID (`mapid`).
+        If authenticated, user data is included.
+        If not authenticated, only map data is included.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: eventtype
+          in: path
+          description: Type of event to get.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+        - name: mapid
+          in: path
+          description: ID of map to get.
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Map data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleMapResponse'
+              examples:
+                SingleMapExample:
+                  $ref: "#/components/examples/SingleMapExample1"
+    post:
+      tags:
+        - ""
+      summary: Endpoint to edit map.
+      description: >
+        Admin use only.
+        Expects POST fields `reset` to be passed as JSON, containing the map's ID, which worldrecord should be reset in database.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventtype
+          in: path
+          description: Type of event.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+        - name: mapid
+          in: path
+          description: ID of map.
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reset
+              properties:
+                reset:
+                  type: string
+            example:
+              reset: ""
+      responses:
+        200:
+          description: Worldrecord was reset successfully.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+        401:
+          description: User is not admin.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Unauthorized
+        404:
+          description: Map not found.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Not Found
+  /eventstatus:
+    get:
+      tags:
+        - event
+      summary: Endpoint that returns the status of events.
+      description: >
+        Can return be overwritten with a paramter for testing.
+        States whether an event is currently running, coming up, recently ended or if it's offseason.
+        `status` can have four values:
+          - "active": Event is currently running.
+          - "post": Event has recently ended (<30 days ago).
+          - "pre": Event is coming up (<30 days to event start).
+          - "offseason": Else.
+
+        Response can contain additional keys providing information about the event.
+        Additional (optional) keys are:
+          - type ("kk", "kr")
+          - edition (string representation of an integer)
+          - start (ISO 8601 timestamp of event's start)
+          - end (ISO 8601 timestamp of event's end)
+      security:
+        - {}
+      responses:
+        200:
+          description: Event status provided.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventStatusResponse"
+              examples:
+                EventStatus_Active:
+                  $ref: "#/components/examples/EventStatus_Active"
+                EventStatus_Pre:
+                  $ref: "#/components/examples/EventStatus_Pre"
+                EventStatus_Post:
+                  $ref: "#/components/examples/EventStatus_Post"
+                EventStatus_Offseason:
+                  $ref: "#/components/examples/EventStatus_Offseason"
+  /events:
+    get:
+      tags:
+        - ""
+      summary: Get available events.
+      security:
+        - {}
+      responses:
+        200:
+          description: List of available events.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsListResponse"
+              examples:
+                EventsList:
+                  $ref: "#/components/examples/EventsList"
+    post:
+      tags:
+        - admin
+      summary: Manage Events
+      description: If a user is logged in and is an admin, the `visibility` field can be passed as JSON to get the visibility of events. If `visibility` is passed and set to "true", the response will contain all events, including their IDs and visibility status.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                visibility:
+                  type: integer
+                  enum:
+                    - ""
+                    - "true"
+                  description: If `visibility` is passed with value `"true"`, all events (visible and not visible) in database are returned.
+      responses:
+        200:
+          description: List of events.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/EventsListResponse"
+                  - $ref: "#/components/schemas/EventsListAdminResponse"
+        401:
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                type: string
+              example: Unauthorized
+
+  /pb/{event}:
+    get:
+      tags:
+        - player
+      summary: Returns a player's personal bests for all maps of the given event.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: event
+          in: path
+          description: Type of event to get.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+      responses:
+        200:
+          description: List of personal bests.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  required:
+                    - date
+                    - kacky_rank
+                    - score
+                  properties:
+                    date:
+                      type: number
+                      format: double
+                    kacky_rank:
+                      type: integer
+                    score:
+                      type: integer
+                example:
+                  "-150":
+                    date: 1689656250.0
+                    kacky_rank: 1
+                    score: 10660
+                  "-151":
+                    date: 1679918774.0
+                    kacky_rank: 1
+                    score: 17810
+                  "-152":
+                    date: 1680036033.0
+                    kacky_rank: 6
+                    score: 26930
+        400:
+          description: Bad event type.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Bad Request
+
+  /performance/{event}:
+    get:
+      tags:
+        - player
+        - records_api
+      summary: Returns a player's performance for finished all maps of the given event.
+      description: >
+        Returns a player's performance for finished all maps of the given event.
+        Performance is defined as the date of the current best finish, rank and score.
+        The player's login is retrieved from the database by the user's ID from provided JWT.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: event
+          in: path
+          description: Type of event.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+      responses:
+        200:
+          description: date of current best finish, rank and score for all maps the player finished.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  required:
+                    - date
+                    - kacky_rank
+                    - score
+                  properties:
+                    date:
+                      type: number
+                      format: double
+                    kacky_rank:
+                      type: integer
+                    score:
+                      type: integer
+                example:
+                  "-150":
+                    date: 1613793809.0
+                    kacky_rank: 19
+                    score: 16670
+                  "-151":
+                    date: 1678934013.0
+                    kacky_rank: 28
+                    score: 19430
+                  "-152":
+                    date: 1680446810
+                    kacky_rank: 2
+                    score: 26150
+        400:
+          description: Bad event type.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Bad Request
+
+  /event/{login}/finned:
+    get:
+      tags:
+        - player
+        - records_api
+        - streaming
+      summary: Returns a player's finished maps for the currently running event.
+      description: >
+        Returns a player's finished maps for the currently running event.
+        Designed for streamers to be used with stream-chat commands.
+      parameters:
+        - name: login
+          in: path
+          description: Login of player.
+          required: true
+          schema:
+            type: string
+        - name: string
+          in: query
+          description: Return format option.
+          required: false
+          schema:
+            type: string
+            enum:
+              - ids
+              - ranks
+              - scores
+        - name: list
+          in: query
+          description: Returns a list with all map IDs of finished maps.
+          required: false
+          schema:
+            type: integer
+            enum:
+              - 1
+      responses:
+        200:
+          description: TODO.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Default returns finished maps as a dict. Contains a counter and map IDs.
+                    required:
+                      - finished
+                      - mapids
+                    properties:
+                      finished:
+                        type: integer
+                      mapids:
+                        type: array
+                        items:
+                          type: string
+                  - type: string
+                    description: Parameter `string=ids` returns finished maps as a string of map IDs.
+                  - type: string
+                    description: Parameter `string=ranks` returns finished maps as a string of map IDs and ranks.
+                  - type: string
+                    description: Parameter `string=scores` returns finished maps as a string of map IDs and scores.
+                  - type: array
+                    description: Parameter `list=1` returns finished maps as a list of map IDs.
+              examples:
+                Default:
+                  value:
+                    finished: 2
+                    mapids:
+                      - "-150"
+                      - "-120"
+                string=ids:
+                  value: "-150, -120"
+                string=ranks:
+                  value: "-150 (10), -120 (200)"
+                string=scores:
+                  value: "-150 (16660), -120 (17810)"
+                list=1:
+                  value:
+                    - "-150"
+                    - "-120"
+  /event/{login}/unfinned:
+    get:
+      tags:
+        - player
+        - records_api
+        - streaming
+      summary: Returns a player's unfinished maps for the currently running event.
+      description: >
+        Returns a player's unfinished maps for the currently running event.
+        Designed for streamers to be used with stream-chat commands.
+      parameters:
+        - name: login
+          in: path
+          description: The player's Trackmania login.
+          required: true
+          schema:
+            type: string
+        - name: string
+          in: query
+          description: Return format option.
+          required: false
+          schema:
+            type: string
+            enum:
+              - ids
+      responses:
+        200:
+          description: TODO.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    description: Default returns unfinished maps as a list of map IDs.
+                    items:
+                      type: string
+                  - type: string
+                    description: Parameter `string=ids` returns unfinished maps as a string joined by ", ".
+              examples:
+                Default:
+                  value:
+                    - "-150"
+                    - "-120"
+                string=ids:
+                  value: "-150, -120"
+
+  /event/{login}/nextunfinned:
+    get:
+      tags:
+        - player
+        - records_api
+        - streaming
+      summary: Return a player's unfinished map that is played next on any server. May be multiple.
+      parameters:
+        - name: login
+          in: path
+          description: The player's Trackmania login.
+          required: true
+          schema:
+            type: string
+        - name: simochat
+          in: query
+          description: Natural language representation.
+          required: false
+          schema:
+            type: integer
+            enum:
+              - 1
+      responses:
+        200:
+          description: TODO
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: No parameter returns a dict with info on the earliest upcoming map(s).
+                    additionalProperties:
+                      type: object
+                      required:
+                        - upcomingIn
+                        - server
+                      properties:
+                        upcomingIn:
+                          type: string
+                        server:
+                          type: integer
+                  - type: string
+                    description: Information for the next unfinished in sentence form.
+              examples:
+                Default:
+                  value:
+                    -150:
+                      upcomingIn: 324
+                      server: Kackiest Kacky 5 - Easy
+                simochat=1:
+                  value:
+                    "Next unfinished map: 222 in 3 minutes."
+
+  /wrleaderboard/{eventtype}:
+    get:
+      tags:
+        - event
+      summary: TODO
+      parameters:
+        - name: eventtype
+          in: path
+          description: Type of the event.
+          required: true
+          schema:
+            type: string
+            enum:
+              - kk
+              - kr
+        - name: html
+          in: query
+          description: Resolves TM formatted Nicknames to HTML
+          required: false
+          schema:
+            type: string
+            enum:
+              - True
+      responses:
+        200:
+          description: TODO.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - nwrs
+                    - login
+                    - nickname
+                  properties:
+                    nwrs:
+                      type: integer
+                      description: Count of worldrecords
+                    login:
+                      type: string
+                      description: Login of the player
+                    nickname:
+                      type: string
+                      description: Most recent nickname used by the login. Either TM formatted or resolved to HTML.
+              examples:
+                Default:
+                  value:
+                    - login: embergers
+                      nickname: $fffacer$000.$009m$00Bl$00De$00Fm
+                      nwrs: 45
+                    - login: _555af__fc7.link_9c7max
+                      nickname: $i$00F\u0493$00D\u0e1f$00B\u0e4f $fff\u013f\u03b9\u0438\u03ba $00b\u041d$00d\u0442$00f\u043c
+                      nwrs: 38
+                    - login: simo_900
+                      nickname: $s$eee$osim$555($111'$ccc\u00d7$eee$w\u0945$m$111'$555)
+                      nwrs: 27
+                html=True:
+                  value:
+                    - login: embergers
+                      nickname: <span style=\";color:#fff\">acer</span><span style=\";color:#000\">.</span><span style=\";color:#009\">m</span><span style=\";color:#00b\">l</span><span style=\";color:#00d\">e</span><span style=\";color:#00f\">m</span>
+                      nwrs: 45
+                    - login: _555af__fc7.link_9c7max
+                      nickname: '<span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#00f\">\u0493</span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#00d\">\u0e1f</span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#00b\">\u0e4f </span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#fff\">\u013f\u03b9\u0438\u03ba </span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#00b\">\u041d</span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#00d\">\u0442</span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#00f\">\u043c</span>'
+                      nwrs: 38
+                    - login: simo_900
+                      nickname: "<span style=\";color:#eee\">sim</span><span style=\";color:#555\">(</span><span style=\";color:#111\">'</span><span style=\";color:#ccc\">\u00d7</span><span style=\"letter-spacing: -0.1em;font-size:smaller;;color:#eee\">\u0945</span><span style=\"letter-spacing: +0.1em;font-size:larger;;color:#111\">'</span><span style=\"letter-spacing: +0.1em;font-size:larger;;color:#555\">)</span>"
+                      nwrs: 27
+
+  /event/nextrun/{map_id}:
+    get:
+      tags:
+        - event
+        - streaming
+      summary: Returns information when the requested map is played again in the currently running event.
+      parameters:
+        - name: map_id
+          in: path
+          description: ID of the map. Must be from currently running event.
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: TODO
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: No parameter returns a dict with info on the earliest upcoming map(s).
+                    required:
+                      - currentlyRunning
+                    properties:
+                      currentlyRunning:
+                        type: boolean
+                        description: Indicates whether the map is running currently.
+                    additionalProperties:
+                      type: object
+                      properties:
+                        server:
+                          type: integer
+                          description: Server on which map is played next.
+                        upcomingIn:
+                          type: integer
+                          description: Time until the map is played in seconds.
+                  - type: string
+                    description: Static message "Competition Over"
+              examples:
+                Next Play:
+                  value:
+                    222:
+                      - server: Kacky Reloaded 4 - Easy 1
+                        upcomingIn: 61
+                    currentlyRunning: false
+                Competition over:
+                  value:
+                    Competition Over
+  /manage/events:
+    post:
+      tags:
+        - admin
+      summary: Allows admins to create and edit events.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: create
+          in: query
+          required: false
+          description: Contains info to create an event.
+          schema:
+            type: object
+            required:
+              - name
+              - type
+              - edition
+              - startDate
+              - endDate
+              - minID
+              - maxID
+            properties:
+              name:
+                type: string
+                description: Name if the new event.
+                maxLength: 80
+              type:
+                type: string
+                description: Type of the new event.
+                enum:
+                  - kk
+                  - kr
+              edition:
+                type: integer
+                description: Edition of the event. Numeric value.
+              startDate:
+                type: string
+                description: ISO8601 timestamp
+              endDate:
+                type: string
+                description: ISO8601 timestamp
+              minID:
+                type: integer
+                description: Lowest map ID in the event.
+              maxID:
+                type: integer
+                description: Highest map ID in the event.
+        - name: visible
+          in: query
+          required: false
+          description: Allows to set the visibility of an event. Changes visibility on Hunting page.
+          schema:
+            type: object
+            required:
+              - id
+              - value
+            properties:
+              id:
+                type: integer
+                description: ID of the event to change visibility of.
+              value:
+                type: boolean
+                description: New visibility value.
+                enum:
+                  - true
+                  - false
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+              example:
+                value:
+                  OK
+        401:
+          description: Not authorized.
+          content:
+            application/json:
+              schema:
+                type: string
+              example:
+                value:
+                  Not authorized. Your actions will have consequences.
+        400:
+          description: Bad Request.
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Info on bad values in request.
+
+  /manage/maps:
+    post:
+      tags:
+        - admin
+      summary: Accepts a CSV file to bulk update maps.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  description: Contains CSV with map information to update/create maps. By default existing maps are not overwritten. Need to set `overwrite=1` for that.
+                overwrite:
+                  type: integer
+                  enum:
+                    - 1
+                  description: Forces update of already existing maps in database.
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+        401:
+          description: Not authorized.
+          content:
+            application/json:
+              schema:
+                type: string
+              example:
+                value:
+                  Not authorized. Your actions will have consequences.
+        422:
+          description: Missing required columns.
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Description of errors in CSV file.
+        409:
+          description: Your action would overwrite already existing maps! You may set 'overwrite' to 1
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Your action would overwrite already existing maps! You may set 'overwrite' to 1
+        400:
+          description: Missing file
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Missing file
+
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+
+  schemas:
+    DashboardResponse:
+      type: object
+      required:
+        - servers
+        - comptimeLeft
+      properties:
+        servers:
+          type: array
+          items:
+            type: object
+            required:
+              - serverNumber
+              - serverDifficulty
+              - maps
+              - timeLimit
+              - timeLeft
+            properties:
+              serverNumber:
+                type: integer
+              serverDifficulty:
+                type: integer
+              maps:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - number
+                    - author
+                  properties:
+                    number:
+                      type: integer
+                    author:
+                      type: string
+                    finished:
+                      type: boolean
+                    difficulty:
+                      type: integer
+              timeLimit:
+                type: integer
+              timeLeft:
+                type: integer
+        comptimeLeft:
+          type: integer
+    EventStatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - active
+            - post
+            - pre
+            - offseason
+        type:
+          type: string
+          enum:
+            - kk
+            - kr
+        edition:
+          type: integer
+        start:
+          type: string
+        end:
+          type: string
+    SingleMapData:
+      type: object
+      required:
+        - author
+        - kacky_id
+        - kacky_id_int
+        - rating
+        - version
+        - wr_holder
+        - wr_score
+        - upcomingIn
+        - servers
+      properties:
+        author:
+          type: string
+        kacky_id:
+          type: integer
+        kacky_id_int:
+          type: integer
+        rating:
+          type: integer
+        version:
+          type: string
+        wr_holder:
+          type: string
+        wr_score:
+          type: integer
+        upcomingIn:
+          type: integer
+        server:
+          type: string
+        clip:
+          type: string
+        alarm:
+          type: boolean
+        map_pb:
+          type: integer
+        map_rank:
+          type: integer
+    SingleMapResponse:
+      type: array
+      minItems: 1
+      maxItems: 1
+      items:
+        $ref: "#/components/schemas/SingleMapData"
+    SpreadsheetResponse:
+      type: array
+      minItems: 50
+      maxItems: 75
+      items:
+        $ref: '#/components/schemas/SingleMapData'
+    ScheduleResponse:
+      type: array
+      minItems: 50
+      maxItems: 75
+      items:
+        allOf:
+          - $ref: '#/components/schemas/SingleMapData'
+          - type: object
+            required:
+              - upcomingIn
+              - server
+            properties:
+              upcomingIn:
+                type: integer
+              server:
+                type: string
+    EventsListResponse:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        required:
+          - name
+          - edition
+          - type
+        properties:
+          name:
+            type: string
+            description: Full Event Name
+          edition:
+            type: integer
+          type:
+            type: string
+            description: Acronym for the event (e. g. KK for Kackiest Kacky)
+    EventsListAdminResponse:
+      allOf:
+        - $ref: "#/components/schemas/EventsListResponse"
+        - type: object
+          required:
+            - visible
+          properties:
+            visible:
+              type: string
+
+
+  examples:
+    SingleMapExample1:
+      value:
+        author: "nixion4"
+        kacky_id: 1
+        kacky_id_int: 1
+        rating: 1
+        version: ""
+        wr_holder: "nellike"
+        wr_score: 2760
+        clip: "https://www.youtube.com/watch?v=6n3pFFPSlW4"
+        alarm: true
+        map_pb: 2850
+        map_rank: 970
+    EventStatus_Active:
+      value:
+        status: active
+        type: kr
+        edition: 4
+    EventStatus_Post:
+      value:
+        status: post
+        type: kr
+        edition: 4
+    EventStatus_Pre:
+      value:
+        status: pre
+        type: kr
+        edition: 4
+        start: "2023-08-18T20:00:00Z"
+    EventStatus_Offseason:
+      value:
+        status: offseason
+    EventsList:
+      value:
+        - edition: 1
+          name: Kackiest Kacky 1
+          type: KK
+        - edition: 2
+          name: Kackiest Kacky 2
+          type: KK
+        - edition: 3
+          name: Kackiest Kacky 3
+          type: KK
+        - edition: 4
+          name: Kackiest Kacky 4
+          type: KK
+        - edition: 5
+          name: Kackiest Kacky 5
+          type: KK
+        - edition: 6
+          name: Kackiest Kacky 6
+          type: KK
+        - edition: 7
+          name: Kackiest Kacky 7
+          type: KK
+        - edition: 1
+          name: Kacky Reloaded 1
+          type: KR
+        - edition: 2
+          name: Kacky Reloaded 2
+          type: KR
+        - edition: 3
+          name: Kacky Reloaded 3
+          type: KR
+        - edition: 8
+          name: Kackiest Kacky 8
+          type: KK
+        - edition: 4
+          name: Kacky Reloaded 4
+          type: KR
