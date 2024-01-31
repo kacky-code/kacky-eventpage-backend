@@ -423,6 +423,7 @@ class UserDataMngr(DBConnection):
                         maps.map_version as version,
                         maps.author,
                         maps.difficulty as rating,
+                        maps.default_clip,
                         data.*,
                         wr.score AS wr_score,
                         wr.nickname AS wr_nick,
@@ -455,6 +456,7 @@ class UserDataMngr(DBConnection):
                         maps.map_version as version,
                         maps.author,
                         maps.difficulty as rating,
+                        maps.default_clip,
                         wr.score AS wr_score,
                         wr.nickname AS wr_nick,
                         wr.login AS wr_login

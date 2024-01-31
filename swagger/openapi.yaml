@@ -1317,6 +1317,8 @@ components:
           type: string
         clip:
           type: string
+        default_clip:
+          type: string
         alarm:
           type: boolean
         map_pb:
