@@ -621,7 +621,7 @@ def spreadsheet_current_event():
     log_access("/spreadsheet - GET", bool(current_user))
 
     if not is_event_running():
-        return flask.jsonify(423), 423
+        return flask.jsonify(flask_restful.http_status_message(423)), 423
 
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
@@ -973,7 +973,7 @@ def get_finished_maps_event(login: str):
     log_access(f"/event/{login}/finned - GET", bool(current_user))
 
     if not is_event_running():
-        return flask.jsonify(423), 423
+        return flask.jsonify(flask_restful.http_status_message(423)), 423
 
     assert isinstance(login, str)
 
@@ -1022,7 +1022,7 @@ def get_unfinished_maps_event(login: str, internal: bool = False):
     log_access(f"/event/{login}/unfinned - GET", bool(current_user))
 
     if not is_event_running():
-        return flask.jsonify(423), 423
+        return flask.jsonify(flask_restful.http_status_message(423)), 423
 
     assert isinstance(login, str)
 
@@ -1060,7 +1060,7 @@ def get_next_unfinned_event(login: str):
     """
     log_access(f"/event/{login}/nextunfinned - GET", bool(current_user))
     if not is_event_running():
-        return flask.jsonify(423), 423
+        return flask.jsonify(flask_restful.http_status_message(423)), 423
     assert isinstance(login, str)
 
     unfinned = get_unfinished_maps_event(login, internal=True)
@@ -1135,7 +1135,7 @@ def get_next_map_run(kacky_id):
     log_access(f"/event/nextrun/{kacky_id} - GET", bool(current_user))
 
     if not is_event_running():
-        return flask.jsonify(423), 423
+        return flask.jsonify(flask_restful.http_status_message(423)), 423
 
     try:
         int(kacky_id)
@@ -1561,11 +1561,16 @@ def log_access(route: str, logged_in: bool = False):
 def is_event_running():
     if config["testing_mode"]:
         return (
-            config["testing_compstart"]
+            datetime.datetime.fromisoformat(config["testing_compstart"])
             <= datetime.datetime.now()
-            <= ["testing_compend"]
+            <= datetime.datetime.fromisoformat(config["testing_compend"])
         )
-    return config["compstart"] <= datetime.datetime.now() <= ["compend"]
+    logger.info(f'{type(config["compstart"])}  {config["compstart"]}')
+    return (
+        datetime.datetime.fromisoformat(config["compstart"])
+        <= datetime.datetime.now()
+        <= datetime.datetime.fromisoformat(config["compend"])
+    )
 
 
 #                    _
