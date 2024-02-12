@@ -619,6 +619,10 @@ def spreadsheet_current_event():
             Only produces HTTP 500 id database error occured or configuration file is bad.
     """
     log_access("/spreadsheet - GET", bool(current_user))
+
+    if not is_event_running():
+        return flask.jsonify(423), 423
+
     um = UserDataMngr(config, secrets)
     # Check if user is logged in.
     if not current_user:  # User not logged in
@@ -966,15 +970,25 @@ def get_finished_maps_event(login: str):
     Returns:
         Any: Dict, list or string, depending on query parameters and call origin.
     """
-    assert isinstance(login, str)
     log_access(f"/event/{login}/finned - GET", bool(current_user))
+
+    if not is_event_running():
+        return flask.jsonify(423), 423
+
+    assert isinstance(login, str)
 
     r = requests.get(
         f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
     )
-    scores = {
-        k: v for k, v in r.json().items() if int(MAPIDS[0]) <= int(k) <= int(MAPIDS[1])
-    }
+
+    try:
+        scores = {
+            k: v
+            for k, v in r.json().items()
+            if int(MAPIDS[0]) <= int(k) <= int(MAPIDS[1])
+        }
+    except AttributeError:
+        return return_bad_value(login)
     if flask.request.args.get("string", default=0, type=str) == "ids":
         return ", ".join(scores.keys())
     if flask.request.args.get("string", default=0, type=str) == "ranks":
@@ -1005,8 +1019,12 @@ def get_unfinished_maps_event(login: str, internal: bool = False):
     Returns:
         Any: list, string or flask.Response, depending on query parameters and call origin.
     """
-    assert isinstance(login, str)
     log_access(f"/event/{login}/unfinned - GET", bool(current_user))
+
+    if not is_event_running():
+        return flask.jsonify(423), 423
+
+    assert isinstance(login, str)
 
     r = requests.get(
         f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
@@ -1040,8 +1058,11 @@ def get_next_unfinned_event(login: str):
     Returns:
         Any: flask.Response or string, depending on query parameters and call origin.
     """
-    assert isinstance(login, str)
     log_access(f"/event/{login}/nextunfinned - GET", bool(current_user))
+    if not is_event_running():
+        return flask.jsonify(423), 423
+    assert isinstance(login, str)
+
     unfinned = get_unfinished_maps_event(login, internal=True)
     result = {unf: {} for unf in unfinned}
     add_playtimes_to_sheet(result)
@@ -1111,6 +1132,11 @@ def get_next_map_run(kacky_id):
     Returns:
         Any: Dict or string, depending on query parameters and call origin.
     """
+    log_access(f"/event/nextrun/{kacky_id} - GET", bool(current_user))
+
+    if not is_event_running():
+        return flask.jsonify(423), 423
+
     try:
         int(kacky_id)
     except ValueError:
@@ -1530,6 +1556,16 @@ def log_access(route: str, logged_in: bool = False):
         f"{flask.request.headers.get('X-Forwarded-For', 'unknown-forward')}. "
         f"User status: {logged_in}"
     )
+
+
+def is_event_running():
+    if config["testing_mode"]:
+        return (
+            config["testing_compstart"]
+            <= datetime.datetime.now()
+            <= ["testing_compend"]
+        )
+    return config["compstart"] <= datetime.datetime.now() <= ["compend"]
 
 
 #                    _

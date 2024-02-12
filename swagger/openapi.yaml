@@ -405,6 +405,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScheduleResponse"
               # TODO: examples
+        423:
+          description: Returned when no event is active.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Locked
 
   /spreadsheet/{eventtype}/{edition}:
     get:
@@ -832,6 +839,14 @@ paths:
                   value:
                     - "-150"
                     - "-120"
+        423:
+          description: Returned when no event is active.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Locked
+
   /event/{login}/unfinned:
     get:
       tags:
@@ -877,6 +892,14 @@ paths:
                     - "-120"
                 string=ids:
                   value: "-150, -120"
+        423:
+          description: Returned when no event is active.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Locked
+
 
   /event/{login}/nextunfinned:
     get:
@@ -930,6 +953,13 @@ paths:
                 simochat=1:
                   value:
                     "Next unfinished map: 222 in 3 minutes."
+        423:
+          description: Returned when no event is active.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Locked
 
   /wrleaderboard/{eventtype}:
     get:
@@ -1050,6 +1080,14 @@ paths:
                 Competition over:
                   value:
                     Competition Over
+        423:
+          description: Returned when no event is active.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Locked
+
   /manage/events:
     post:
       tags:
