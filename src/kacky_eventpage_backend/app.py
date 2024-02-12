@@ -1029,11 +1029,14 @@ def get_unfinished_maps_event(login: str, internal: bool = False):
     r = requests.get(
         f"https://api.kacky.gg/records/pb/{login}/{config['eventtype']}/{config['edition']}"
     )
-    mapids = [
-        m
-        for m in range(int(MAPIDS[0]), int(MAPIDS[1]) + 1)
-        if str(m) not in r.json().keys()
-    ]
+    try:
+        mapids = [
+            m
+            for m in range(int(MAPIDS[0]), int(MAPIDS[1]) + 1)
+            if str(m) not in r.json().keys()
+        ]
+    except AttributeError:
+        return return_bad_value(login)
     logger.info(r.json())
     if internal:
         return mapids
@@ -1064,6 +1067,8 @@ def get_next_unfinned_event(login: str):
     assert isinstance(login, str)
 
     unfinned = get_unfinished_maps_event(login, internal=True)
+    if not isinstance(unfinned, list):
+        return return_bad_value(login)
     result = {unf: {} for unf in unfinned}
     add_playtimes_to_sheet(result)
     # find shortest wait time
